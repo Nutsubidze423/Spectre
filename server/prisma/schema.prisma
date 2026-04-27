@@ -1,0 +1,38 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  boards       Board[]
+}
+
+model Board {
+  id           String          @id @default(uuid())
+  userId       String
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  thumbnailUrl String?
+  isPublic     Boolean         @default(false)
+  shareToken   String          @unique @default(uuid())
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  snapshots    BoardSnapshot[]
+}
+
+model BoardSnapshot {
+  id           String   @id @default(uuid())
+  boardId      String
+  board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  elementsJson Json
+  createdAt    DateTime @default(now())
+}
