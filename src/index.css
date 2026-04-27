@@ -282,6 +282,240 @@ body {
   color: rgba(107, 107, 138, 0.5);
 }
 
+/* ─── Overlay canvas (remote cursors) ───────────────────────────────────── */
+
+.overlay-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ─── Room panel ─────────────────────────────────────────────────────────── */
+
+.room-panel-anchor {
+  position: fixed;
+  top: 16px;
+  left: 20px;
+  z-index: 100;
+}
+
+.room-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--panel);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.15s;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+}
+.room-toggle-btn:hover { color: var(--text); }
+.room-toggle-btn.in-room {
+  color: var(--text);
+  border-color: rgba(120, 120, 180, 0.25);
+}
+
+.room-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.room-code-label {
+  letter-spacing: 0.08em;
+  font-size: 11px;
+}
+
+.room-user-count {
+  background: var(--accent-md);
+  color: var(--accent);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.room-panel {
+  margin-top: 6px;
+  background: var(--panel);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px;
+  min-width: 200px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--accent-lo);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.room-section {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.room-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.room-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.room-code-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.room-code-big {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--text);
+  letter-spacing: 0.12em;
+}
+
+.room-copy-btn {
+  background: var(--accent-md);
+  border: 1px solid var(--accent-hi);
+  border-radius: 5px;
+  padding: 3px 8px;
+  font-size: 11px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.12s;
+}
+.room-copy-btn:hover { background: var(--accent-hi); }
+
+.room-users-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.room-user-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.room-user-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.room-user-name {
+  font-size: 12px;
+  color: var(--text);
+  font-family: 'Inter', sans-serif;
+  flex: 1;
+}
+
+.room-you-badge {
+  font-size: 10px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--accent);
+  background: var(--accent-lo);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.room-leave-btn {
+  background: rgba(247, 106, 106, 0.1);
+  border: 1px solid rgba(247, 106, 106, 0.3);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-size: 12px;
+  color: #f76a6a;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.12s;
+  text-align: center;
+}
+.room-leave-btn:hover { background: rgba(247, 106, 106, 0.18); }
+
+.room-create-btn {
+  background: var(--accent-md);
+  border: 1px solid var(--accent-hi);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.12s;
+  text-align: center;
+}
+.room-create-btn:hover { background: var(--accent-hi); }
+.room-create-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.room-divider-line {
+  height: 1px;
+  background: var(--border);
+}
+
+.room-join-row {
+  display: flex;
+  gap: 6px;
+}
+
+.room-code-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  transition: border-color 0.15s;
+}
+.room-code-input:focus { border-color: var(--accent); }
+.room-code-input::placeholder { color: var(--text-dim); letter-spacing: normal; text-transform: none; }
+
+.room-join-btn {
+  background: var(--accent-md);
+  border: 1px solid var(--accent-hi);
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: background 0.12s;
+  white-space: nowrap;
+}
+.room-join-btn:hover { background: var(--accent-hi); }
+.room-join-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
 /* ─── Specter thinking animation (Phase 4) ───────────────────────────────── */
 
 @keyframes specter-mist {

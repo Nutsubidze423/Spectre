@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { RedisService } from './services/redisService';
+import { registerRoomHandler } from './socket/roomHandler';
 
 dotenv.config();
 
@@ -17,7 +19,7 @@ const io = new Server(httpServer, {
 });
 
 app.use(cors({ origin: CLIENT_URL }));
-app.use(express.json({ limit: '10mb' })); // base64 canvas snapshots can be large
+app.use(express.json({ limit: '10mb' }));
 
 // Routes (Phase 3-5)
 // app.use('/api/auth', authRouter);
@@ -28,10 +30,23 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });
 });
 
-// Socket.io (Phase 3)
+// ─── Redis ───────────────────────────────────────────────────────────────────
+
+const redis = new RedisService();
+
+redis.ping().then((ok) => {
+  if (ok) {
+    console.log('[redis] connected');
+  } else {
+    console.warn('[redis] not reachable — room persistence disabled');
+  }
+});
+
+// ─── Socket.io ───────────────────────────────────────────────────────────────
+
 io.on('connection', (socket) => {
-  console.log('client connected:', socket.id);
-  socket.on('disconnect', () => console.log('client left:', socket.id));
+  console.log('[socket] connected:', socket.id);
+  registerRoomHandler(io, socket, redis);
 });
 
 httpServer.listen(PORT, () => {

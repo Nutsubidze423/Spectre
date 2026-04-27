@@ -12,9 +12,9 @@ Deploy: Railway
 
 ## Current Phase
 
-**PHASE 2 — Drawing** ✅ Complete
+**PHASE 3 — Multiplayer** ✅ Complete
 
-Goal: full local drawing with all tools, undo/redo — no multiplayer yet.
+Goal: real-time collaboration via Socket.io + Redis — remote cursors, live strokes, element sync.
 
 ## Phase Tracker
 
@@ -22,7 +22,7 @@ Goal: full local drawing with all tools, undo/redo — no multiplayer yet.
 |---|-------|--------|
 | 1 | Foundation (canvas engine, zoom/pan, toolbar) | ✅ Done |
 | 2 | Drawing (pen/shapes/text/eraser/selection + undo) | ✅ Done |
-| 3 | Multiplayer (Socket.io, rooms, remote cursors) | ⬜ Pending |
+| 3 | Multiplayer (Socket.io, rooms, remote cursors) | ✅ Done |
 | 4 | AI Assistant (Claude API proxy, AI draw tool) | ⬜ Pending |
 | 5 | Persistence + Auth (Postgres, Prisma, JWT, boards) | ⬜ Pending |
 | 6 | Polish (ghost mode, PWA, cursor trails, perf audit) | ⬜ Pending |
@@ -100,11 +100,37 @@ cd server && npm run dev   # Express :3001 (Phase 3+)
 docker run -d -p 6379:6379 redis  # Redis (Phase 3+)
 ```
 
+## Phase 3 Completed
+
+- [x] `server/src/services/redisService.ts` — full Redis CRUD: rooms, users, elements, socket→room mapping, 48hr TTL
+- [x] `server/src/socket/roomHandler.ts` — all events: `room:create/join/leave`, `cursor:move`, `stroke:point/complete`, `element:add/update/delete`, `disconnect`
+- [x] `server/src/index.ts` — wired RedisService + registerRoomHandler
+- [x] `src/room/RoomEngine.ts` — Socket.io singleton (`getRoomEngine()`/`setRoomEngine()`), `autoConnect: false`, cursor throttle 30fps
+- [x] `src/canvas/OverlayEngine.ts` — cursor-only RAF loop, trail dots + fade, name labels, `roundRect` label bg
+- [x] `src/room/useRoom.ts` — React hook, wires all RoomEngine callbacks to canvasStore/roomStore/OverlayEngine
+- [x] `src/store/canvasStore.ts` — added `setElements()` for bulk load on room join
+- [x] `src/canvas/CanvasEngine.ts` — `setRemoteStrokePoint`, `clearRemoteStroke`, `clearAllRemoteStrokes`, renders remote strokes in RAF
+- [x] `src/canvas/InputHandler.ts` — `onCursorMove` callback, emits canvas-space coords on every mousemove
+- [x] `src/tools/PenTool.ts` — added `onStrokePoint` + `onStrokeComplete` to ToolContext
+- [x] `src/canvas/useCanvas.ts` — wires cursor emit, stroke events, element add/update/delete all emit to RoomEngine
+- [x] `src/components/RoomPanel.tsx` — create/join UI, code display + copy, user list with colored dots, leave button
+- [x] `src/App.tsx` — overlay canvas + OverlayEngine lifecycle + useRoom + RoomPanel
+- [x] `src/index.css` — overlay-canvas + all room panel styles
+
+## Key Architecture Notes (Phase 3)
+
+- **Room ID = Room Code**: 6 uppercase alphanumeric chars, server-generated. User shares directly.
+- **RoomEngine singleton**: `getRoomEngine()` / `setRoomEngine()` — tools and useCanvas access without prop drilling.
+- **Remote strokes**: stored in `CanvasEngine.remoteStrokes Map<elementId, {points,color,strokeWidth}>`, rendered in main RAF loop.
+- **OverlayEngine**: separate canvas element (pointer-events: none), own RAF loop, cursor trail = last 5 positions drawn as fading dots.
+- **Cursor throttle**: 30fps guard in `RoomEngine.emitCursorMove()` via `lastCursorEmit` timestamp.
+- **Stroke events**: PenTool uses `stroke:point` + `stroke:complete` (NOT `element:add`). All other tools use `element:add`.
+- **Element updates**: emitted on every `onElementUpdate` call (move events). Acceptable for Phase 3.
+- **Socket autoConnect: false**: connects only when user takes a room action (create/join).
+
 ## Notes for Next Claude Session
 
-- Phase 3 starts with: `server/src/index.ts` + `server/src/socket/roomHandler.ts` + `RoomEngine.ts` + `OverlayEngine.ts`
-- Socket.io events spec is in the original prompt — use it exactly
-- Redis schema: room:{id} hash, room:{id}:elements hash, room:{id}:users hash, 48hr TTL
-- OverlayEngine renders remote cursors ONLY — never triggers main canvas redraw
-- Cursor events throttled 30/sec client-side (use a `lastEmit` timestamp guard)
-- Room code = 6 uppercase chars, generated server-side with nanoid or similar
+- Phase 4 starts with: `server/src/routes/ai.ts` + `src/tools/AISelectionTool.ts` + `src/components/AIPromptInput.tsx`
+- AI tool: rubber-band select region → screenshot to base64 → POST /api/ai/draw → Claude interprets prompt + region → returns element array
+- Claude model: `claude-sonnet-4-6` with vision + tools
+- Keep AI route server-side only (API key must not leak to client)

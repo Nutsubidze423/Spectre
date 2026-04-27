@@ -8,6 +8,8 @@ import { TextTool } from '../tools/TextTool';
 import { EraserTool } from '../tools/EraserTool';
 import { SelectionTool } from '../tools/SelectionTool';
 import { AISelectionTool } from '../tools/AISelectionTool';
+import { getRoomEngine } from '../room/RoomEngine';
+import { useRoomStore } from '../store/roomStore';
 import type { CanvasElement, ITool, ToolEvent } from '../types';
 
 export function useCanvas() {
@@ -28,23 +30,32 @@ export function useCanvas() {
     engineRef.current = engine;
     engine.setViewportChangeCallback((vp) => setViewport(vp));
 
-    // Shared tool context — always reads current state via getState()
     const toolCtx = {
       engine,
       getColor: () => useCanvasStore.getState().color,
       getStrokeWidth: () => useCanvasStore.getState().strokeWidth,
       getOpacity: () => useCanvasStore.getState().opacity,
-      getUserId: () => 'local', // Phase 3: real userId from auth
+      getUserId: () => useRoomStore.getState().myUserId ?? 'local',
       onElementAdd: (el: CanvasElement) => {
         useCanvasStore.getState().addElement(el);
+        getRoomEngine()?.emitElementAdd(el);
       },
       onElementUpdate: (id: string, changes: Partial<CanvasElement>) => {
         useCanvasStore.getState().updateElement(id, changes);
+        getRoomEngine()?.emitElementUpdate(id, changes);
       },
       onElementDelete: (ids: string[]) => {
         useCanvasStore.getState().deleteElements(ids);
+        getRoomEngine()?.emitElementDelete(ids);
       },
       pushSnapshot: () => useCanvasStore.getState().pushSnapshot(),
+      onStrokePoint: (elementId: string, point: { x: number; y: number }) => {
+        getRoomEngine()?.emitStrokePoint(elementId, point.x, point.y);
+      },
+      onStrokeComplete: (el: CanvasElement) => {
+        useCanvasStore.getState().addElement(el);
+        getRoomEngine()?.emitStrokeComplete(el);
+      },
     };
 
     toolMapRef.current = {
@@ -59,7 +70,6 @@ export function useCanvas() {
       'ai-select': new AISelectionTool(toolCtx),
     };
 
-    // Route tool events to active tool
     const handleToolEvent = (event: ToolEvent) => {
       const { activeTool } = useCanvasStore.getState();
       toolMapRef.current[activeTool]?.onEvent(event);
@@ -69,6 +79,7 @@ export function useCanvas() {
       engine,
       getActiveTool: () => useCanvasStore.getState().activeTool,
       onToolEvent: handleToolEvent,
+      onCursorMove: (x, y) => getRoomEngine()?.emitCursorMove(x, y),
     });
 
     // ─── Keyboard shortcuts ──────────────────────────────────────────────
@@ -94,7 +105,9 @@ export function useCanvas() {
         if (selectedIds.length > 0) {
           e.preventDefault();
           useCanvasStore.getState().pushSnapshot();
-          useCanvasStore.getState().deleteElements(selectedIds);
+          const ids = selectedIds;
+          useCanvasStore.getState().deleteElements(ids);
+          getRoomEngine()?.emitElementDelete(ids);
           engine.setSelectedIds([]);
         }
       }
@@ -121,7 +134,6 @@ export function useCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sync elements to engine on store change
   useEffect(() => {
     engineRef.current?.setElements(elements);
   }, [elements]);

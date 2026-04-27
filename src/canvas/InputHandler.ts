@@ -5,12 +5,14 @@ interface InputHandlerOptions {
   engine: CanvasEngine;
   getActiveTool: () => string;
   onToolEvent: (event: ToolEvent) => void;
+  onCursorMove?: (x: number, y: number) => void;
 }
 
 export class InputHandler {
   private engine: CanvasEngine;
   private getActiveTool: () => string;
   private onToolEvent: (event: ToolEvent) => void;
+  private onCursorMove?: (x: number, y: number) => void;
   private canvas: HTMLCanvasElement;
 
   // Pan state
@@ -26,6 +28,7 @@ export class InputHandler {
     this.engine = options.engine;
     this.getActiveTool = options.getActiveTool;
     this.onToolEvent = options.onToolEvent;
+    this.onCursorMove = options.onCursorMove;
     this.attach();
   }
 
@@ -101,8 +104,12 @@ export class InputHandler {
   };
 
   private onMouseMove = (e: MouseEvent): void => {
+    const sp = this.screenPoint(e);
+    const cp = this.engine.toCanvasCoords(sp.x, sp.y);
+
+    this.onCursorMove?.(cp.x, cp.y);
+
     if (this.isPanning && this.panLast) {
-      const sp = this.screenPoint(e);
       this.engine.pan(sp.x - this.panLast.x, sp.y - this.panLast.y);
       this.panLast = sp;
       return;
@@ -110,11 +117,10 @@ export class InputHandler {
 
     if (!this.isPointerDown) return;
 
-    const sp = this.screenPoint(e);
     this.onToolEvent({
       type: 'move',
       screenPoint: sp,
-      canvasPoint: this.engine.toCanvasCoords(sp.x, sp.y),
+      canvasPoint: cp,
       shiftKey: e.shiftKey,
       ctrlKey: e.ctrlKey || e.metaKey,
     });

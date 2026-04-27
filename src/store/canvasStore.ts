@@ -20,6 +20,7 @@ interface CanvasState {
   addElement: (element: CanvasElement) => void;
   updateElement: (id: string, changes: Partial<CanvasElement>) => void;
   deleteElements: (ids: string[]) => void;
+  setElements: (elements: CanvasElement[]) => void;
 
   // Undo/redo
   pushSnapshot: () => void;
@@ -62,6 +63,9 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       elements: s.elements.filter((el) => !ids.includes(el.id)),
       selectedIds: s.selectedIds.filter((id) => !ids.includes(id)),
     })),
+
+  setElements: (elements) =>
+    set({ elements, past: [], future: [], selectedIds: [] }),
 
   pushSnapshot: () =>
     set((s) => ({

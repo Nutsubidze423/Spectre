@@ -11,6 +11,8 @@ export interface ToolContext {
   onElementUpdate: (id: string, changes: Partial<CanvasElement>) => void;
   onElementDelete: (ids: string[]) => void;
   pushSnapshot: () => void;
+  onStrokePoint?: (elementId: string, point: Point) => void;
+  onStrokeComplete?: (element: CanvasElement) => void;
 }
 
 // Min pixel distance between recorded points (avoids redundant points)
@@ -51,6 +53,7 @@ export class PenTool implements ITool {
         this.ctx.getColor(),
         this.ctx.getStrokeWidth()
       );
+      this.ctx.onStrokePoint?.(this.activeId, event.canvasPoint);
     } else if (event.type === 'end') {
       if (!this.activeId || this.points.length < 2) {
         this.cancel();
@@ -73,7 +76,11 @@ export class PenTool implements ITool {
       };
 
       this.ctx.engine.clearActiveStroke();
-      this.ctx.onElementAdd(element);
+      if (this.ctx.onStrokeComplete) {
+        this.ctx.onStrokeComplete(element);
+      } else {
+        this.ctx.onElementAdd(element);
+      }
       this.activeId = null;
       this.points = [];
     }

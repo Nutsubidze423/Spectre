@@ -29,6 +29,7 @@ export class CanvasEngine {
   private activeStroke: ActiveStroke | null = null;
   private previewElement: Partial<CanvasElement> | null = null;
   private selectionRect: Rect | null = null;
+  private remoteStrokes = new Map<string, ActiveStroke>();
 
   private onViewportChange?: (v: Viewport) => void;
 
@@ -114,6 +115,26 @@ export class CanvasEngine {
     this.markDirty();
   }
 
+  setRemoteStrokePoint(elementId: string, point: Point, color: string, strokeWidth: number): void {
+    const existing = this.remoteStrokes.get(elementId);
+    if (existing) {
+      existing.points.push(point);
+    } else {
+      this.remoteStrokes.set(elementId, { points: [point], color, strokeWidth });
+    }
+    this.markDirty();
+  }
+
+  clearRemoteStroke(elementId: string): void {
+    this.remoteStrokes.delete(elementId);
+    this.markDirty();
+  }
+
+  clearAllRemoteStrokes(): void {
+    this.remoteStrokes.clear();
+    this.markDirty();
+  }
+
   // ─── Dirty / resize ──────────────────────────────────────────────────────
 
   markDirty(): void {
@@ -162,6 +183,9 @@ export class CanvasEngine {
     this.renderGrid();
     this.elementRenderer.renderAll(this.elements);
 
+    for (const stroke of this.remoteStrokes.values()) {
+      if (stroke.points.length > 1) this.elementRenderer.renderActiveStroke(stroke);
+    }
     if (this.activeStroke && this.activeStroke.points.length > 1) {
       this.elementRenderer.renderActiveStroke(this.activeStroke);
     }
