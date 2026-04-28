@@ -1177,3 +1177,59 @@ body {
   color: var(--text);
   border-color: rgba(120,120,180,0.35);
 }
+
+/* ─── Save indicator ─────────────────────────────────────────────────────── */
+
+.save-indicator {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 5px 14px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace;
+  backdrop-filter: blur(12px);
+  pointer-events: none;
+}
+
+@keyframes save-spin {
+  to { transform: rotate(360deg); }
+}
+
+.save-spinner {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(124,106,247,0.3);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: save-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+.save-check {
+  color: #6af7c8;
+  font-size: 0.75rem;
+}
+
+/* ─── Inline rename input ────────────────────────────────────────────────── */
+
+.bm-rename-input {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid var(--accent-hi);
+  border-radius: 4px;
+  padding: 1px 6px;
+  color: var(--text);
+  font-size: 0.88rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  outline: none;
+  width: 100%;
+}

@@ -12,9 +12,9 @@ Deploy: Railway
 
 ## Current Phase
 
-**PHASE 5 — Persistence + Auth** ✅ Complete
+**PHASE 6 — Polish** ✅ Complete
 
-Goal: PostgreSQL + Prisma boards persistence, JWT access+refresh auth, board picker UI.
+Goal: PWA, ghost cursor pulse, dirty-flag overlay perf, board thumbnails, inline rename, save indicator.
 
 ## Phase Tracker
 
@@ -25,7 +25,7 @@ Goal: PostgreSQL + Prisma boards persistence, JWT access+refresh auth, board pic
 | 3 | Multiplayer (Socket.io, rooms, remote cursors) | ✅ Done |
 | 4 | AI Assistant (Claude API proxy, AI draw tool) | ✅ Done |
 | 5 | Persistence + Auth (Postgres, Prisma, JWT, boards) | ✅ Done |
-| 6 | Polish (ghost mode, PWA, cursor trails, perf audit) | ⬜ Pending |
+| 6 | Polish (PWA, ghost cursors, thumbnails, save indicator) | ✅ Done |
 
 ## Phase 2 Completed
 
@@ -176,7 +176,29 @@ docker run -d -p 6379:6379 redis  # Redis (Phase 3+)
 - **CanvasView**: extracted as separate component in App.tsx so canvas/OverlayEngine don't unmount when switching to boards view
 - **Auto-save**: `setInterval(30s)` in CanvasView, reads live `useCanvasStore.getState().elements`, only runs when `activeBoardId` is set
 
+## Phase 6 Completed
+
+- [x] `public/manifest.json` — PWA manifest (name, icons, standalone, theme #7c6af7)
+- [x] `public/sw.js` — service worker: cache-first for shell, skip API/socket requests, versioned cache
+- [x] `index.html` — manifest link, theme-color meta, description meta
+- [x] `src/main.tsx` — SW registration on mount
+- [x] `src/canvas/OverlayEngine.ts` — dirty-flag: only renders RAF when cursors present or recently active; ghost pulse ring (expanding pulsing circle for idle cursors past FADE_START - GHOST_START threshold)
+- [x] `src/canvas/CanvasEngine.ts` — `captureFullCanvas()`: 0.28× scale JPEG thumbnail via offscreen canvas
+- [x] `src/store/boardStore.ts` — `thumbnails: Record<string, string>`, `setThumbnail()`, `lastSavedAt`, `renameBoardRemote()` (optimistic PATCH)
+- [x] `src/App.tsx` — `SaveIndicator` component (Saving…/Saved flash, 2s auto-hide); capture thumbnail on "← Boards" click
+- [x] `src/components/BoardManager.tsx` — thumbnail display in card preview; `RenameInput` inline component (double-click name → input, blur/Enter commits)
+- [x] `src/index.css` — `.save-indicator`, `.save-spinner`, `.save-check`, `.bm-rename-input`
+
+## Key Architecture Notes (Phase 6)
+
+- **PWA SW**: skips `/api/` and `/socket.io` intercepts; caches shell on install; activates with `skipWaiting` + `claim`
+- **OverlayEngine perf**: `lastActivityAt` timestamp — RAF renders only when `hasCursors || recentActivity (< CURSOR_LIFETIME + 200ms)`
+- **Ghost pulse**: `(now % 1400) / 1400` drives radius 12→26px and alpha fade, begins when `age > FADE_START - GHOST_START`
+- **Thumbnails**: in-memory only (boardStore state), captured at 28% scale as JPEG 0.75 when user leaves canvas view
+- **Inline rename**: optimistic — `renameBoard()` updates local store immediately, then PATCH fires async
+- **Save indicator**: reads `isSaving` + `lastSavedAt` from boardStore; "Saved" flash shows for 2s via local `showSaved` state
+
 ## Notes for Next Claude Session
 
-- Phase 6: Polish — ghost mode cursor trails, PWA manifest, performance audit (canvas render budget), possible cursor name label fade
-- Also consider: board thumbnails (capture canvas → upload on save), public share links (read-only canvas load via shareToken), board rename inline in BoardManager
+- Specter is feature-complete across all 6 phases. Ship to Railway.
+- Optional further polish: public share links (read-only canvas via `shareToken`), board export (PNG download), cursor name label fade-out animation tweak

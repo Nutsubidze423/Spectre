@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useCanvas } from './canvas/useCanvas';
 import { useRoom } from './room/useRoom';
 import { OverlayEngine } from './canvas/OverlayEngine';
@@ -15,6 +15,42 @@ import type { Board } from './types';
 import './index.css';
 
 const AUTO_SAVE_INTERVAL = 30_000;
+
+function SaveIndicator() {
+  const isSaving = useBoardStore((s) => s.isSaving);
+  const lastSavedAt = useBoardStore((s) => s.lastSavedAt);
+  const activeBoardId = useBoardStore((s) => s.activeBoardId);
+  const [showSaved, setShowSaved] = useState(false);
+
+  useEffect(() => {
+    if (!lastSavedAt) return;
+    setShowSaved(true);
+    const t = setTimeout(() => setShowSaved(false), 2000);
+    return () => clearTimeout(t);
+  }, [lastSavedAt]);
+
+  if (!activeBoardId) return null;
+
+  return (
+    <AnimatePresence>
+      {(isSaving || showSaved) && (
+        <motion.div
+          className="save-indicator"
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.2 }}
+        >
+          {isSaving ? (
+            <><span className="save-spinner" />Saving…</>
+          ) : (
+            <><span className="save-check">✓</span>Saved</>
+          )}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 function CanvasView() {
   const { canvasRef, engineRef } = useCanvas();
@@ -54,8 +90,17 @@ function CanvasView() {
     return () => clearInterval(id);
   }, [activeBoardId, saveBoard]);
 
-  // Back to boards button
   const setAppView = useAuthStore((s) => s.setAppView);
+  const setThumbnail = useBoardStore((s) => s.setThumbnail);
+
+  function handleBackToBoards() {
+    // Capture thumbnail before leaving
+    if (activeBoardId && engineRef.current) {
+      const thumb = engineRef.current.captureFullCanvas();
+      if (thumb) setThumbnail(activeBoardId, thumb);
+    }
+    setAppView('boards');
+  }
 
   return (
     <div className="app">
@@ -71,12 +116,14 @@ function CanvasView() {
       {activeBoardId && (
         <button
           className="back-to-boards"
-          onClick={() => setAppView('boards')}
+          onClick={handleBackToBoards}
           title="Back to boards"
         >
           ← Boards
         </button>
       )}
+
+      <SaveIndicator />
 
       <AnimatePresence>
         {aiRegion && (
@@ -96,7 +143,6 @@ export default function App() {
   const tryRestoreSession = useAuthStore((s) => s.tryRestoreSession);
   const setAppView = useAuthStore((s) => s.setAppView);
   const setActiveBoardId = useBoardStore((s) => s.setActiveBoardId);
-  const setElements = useCanvasStore((s) => s.setElements);
 
   useEffect(() => {
     void tryRestoreSession();
@@ -104,7 +150,6 @@ export default function App() {
 
   function handleOpenBoard(board: Board) {
     setActiveBoardId(board.id);
-    // Load latest snapshot if available (fetched separately if needed)
     setAppView('canvas');
   }
 

@@ -269,6 +269,21 @@ export class CanvasEngine {
     return off.toDataURL('image/png').split(',')[1];
   }
 
+  captureFullCanvas(): string {
+    const scale = 0.28;
+    const off = document.createElement('canvas');
+    off.width = Math.floor(this.cssWidth * scale);
+    off.height = Math.floor(this.cssHeight * scale);
+    const offCtx = off.getContext('2d');
+    if (!offCtx) return '';
+    offCtx.drawImage(
+      this.canvas,
+      0, 0, this.canvas.width, this.canvas.height,
+      0, 0, off.width, off.height
+    );
+    return off.toDataURL('image/jpeg', 0.75);
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   destroy(): void {

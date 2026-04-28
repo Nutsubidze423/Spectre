@@ -6,29 +6,40 @@ interface BoardState {
   boards: Board[];
   activeBoardId: string | null;
   isSaving: boolean;
+  lastSavedAt: number | null;
+  thumbnails: Record<string, string>;
 
   setBoards: (boards: Board[]) => void;
   addBoard: (board: Board) => void;
   removeBoard: (id: string) => void;
+  renameBoard: (id: string, name: string) => void;
   setActiveBoardId: (id: string | null) => void;
   setIsSaving: (v: boolean) => void;
+  setThumbnail: (boardId: string, dataUrl: string) => void;
 
   fetchBoards: () => Promise<void>;
   createBoard: (name: string) => Promise<Board | null>;
   deleteBoard: (id: string) => Promise<void>;
   saveBoard: (id: string, elements: unknown[]) => Promise<void>;
+  renameBoardRemote: (id: string, name: string) => Promise<void>;
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
   boards: [],
   activeBoardId: null,
   isSaving: false,
+  lastSavedAt: null,
+  thumbnails: {},
 
   setBoards: (boards) => set({ boards }),
   addBoard: (board) => set((s) => ({ boards: [board, ...s.boards] })),
   removeBoard: (id) => set((s) => ({ boards: s.boards.filter((b) => b.id !== id) })),
+  renameBoard: (id, name) =>
+    set((s) => ({ boards: s.boards.map((b) => (b.id === id ? { ...b, name } : b)) })),
   setActiveBoardId: (id) => set({ activeBoardId: id }),
   setIsSaving: (v) => set({ isSaving: v }),
+  setThumbnail: (boardId, dataUrl) =>
+    set((s) => ({ thumbnails: { ...s.thumbnails, [boardId]: dataUrl } })),
 
   fetchBoards: async () => {
     try {
@@ -37,7 +48,7 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       const data = (await res.json()) as { boards: Board[] };
       set({ boards: data.boards });
     } catch {
-      // silently fail — UI shows empty list
+      // silently fail
     }
   },
 
@@ -73,10 +84,23 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         method: 'POST',
         body: JSON.stringify({ elements }),
       });
+      set({ lastSavedAt: Date.now() });
     } catch {
       // silently fail
     } finally {
       set({ isSaving: false });
+    }
+  },
+
+  renameBoardRemote: async (id, name) => {
+    get().renameBoard(id, name);
+    try {
+      await apiFetch(`/api/boards/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify({ name }),
+      });
+    } catch {
+      // silently fail — optimistic update stays
     }
   },
 }));

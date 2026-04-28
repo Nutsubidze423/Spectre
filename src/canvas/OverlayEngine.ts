@@ -10,8 +10,9 @@ interface TrackedCursor {
 }
 
 const TRAIL_LENGTH = 5;
-const CURSOR_LIFETIME = 4000; // ms before cursor fully disappears
-const FADE_START = 2000; // ms of inactivity before fading begins
+const CURSOR_LIFETIME = 4000;
+const FADE_START = 2000;
+const GHOST_START = 1000; // ms before FADE_START where ghost pulse begins
 
 export class OverlayEngine {
   private canvas: HTMLCanvasElement;
@@ -23,6 +24,7 @@ export class OverlayEngine {
 
   private cursors = new Map<string, TrackedCursor>();
   private viewport: Viewport = { offsetX: 0, offsetY: 0, zoom: 1 };
+  private lastActivityAt = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -36,6 +38,7 @@ export class OverlayEngine {
 
   setViewport(viewport: Viewport): void {
     this.viewport = viewport;
+    this.markActivity();
   }
 
   updateCursor(userId: string, x: number, y: number, color: string, name: string): void {
@@ -49,10 +52,12 @@ export class OverlayEngine {
     } else {
       this.cursors.set(userId, { x, y, color, name, lastSeen: Date.now(), trail: [] });
     }
+    this.markActivity();
   }
 
   removeUser(userId: string): void {
     this.cursors.delete(userId);
+    this.markActivity();
   }
 
   handleResize(cssWidth: number, cssHeight: number): void {
@@ -61,13 +66,26 @@ export class OverlayEngine {
     this.cssHeight = cssHeight;
     this.canvas.width = cssWidth * this.dpr;
     this.canvas.height = cssHeight * this.dpr;
+    this.markActivity();
   }
 
   // ─── Render loop ─────────────────────────────────────────────────────────
 
+  private markActivity(): void {
+    this.lastActivityAt = Date.now();
+  }
+
   private startLoop(): void {
     const tick = () => {
-      this.render();
+      const now = Date.now();
+      // Render if there are visible cursors or if we recently cleared
+      const hasCursors = this.cursors.size > 0;
+      const recentActivity = now - this.lastActivityAt < CURSOR_LIFETIME + 200;
+
+      if (hasCursors || recentActivity) {
+        this.render();
+      }
+
       this.rafId = requestAnimationFrame(tick);
     };
     this.rafId = requestAnimationFrame(tick);
@@ -92,6 +110,20 @@ export class OverlayEngine {
 
       const sx = cursor.x * viewport.zoom + viewport.offsetX;
       const sy = cursor.y * viewport.zoom + viewport.offsetY;
+
+      // Ghost pulse ring — appears as cursor goes idle
+      const ghostAge = age - (FADE_START - GHOST_START);
+      if (ghostAge > 0) {
+        const pulsePhase = (now % 1400) / 1400;
+        const pulseR = 12 + pulsePhase * 14;
+        const pulseAlpha = alpha * 0.35 * (1 - pulsePhase);
+        ctx.globalAlpha = pulseAlpha;
+        ctx.strokeStyle = cursor.color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.arc(sx, sy, pulseR, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       // Trail dots
       cursor.trail.forEach((pt, i) => {
