@@ -43,6 +43,7 @@ export class RoomEngine {
   private _onElementUpdated?: (data: { id: string; changes: Partial<CanvasElement> }) => void;
   private _onElementDeleted?: (data: { ids: string[] }) => void;
   private _onRoomFull?: (data: { plan: string; limit: number }) => void;
+  private _onReactionReceived?: (data: { userId: string; emoji: string; x: number; y: number; color: string }) => void;
 
   constructor(url: string) {
     const token = useAuthStore.getState().accessToken;
@@ -68,6 +69,7 @@ export class RoomEngine {
     this.socket.on('element:updated', (d) => this._onElementUpdated?.(d));
     this.socket.on('element:deleted', (d) => this._onElementDeleted?.(d));
     this.socket.on('room:full', (d) => this._onRoomFull?.(d));
+    this.socket.on('reaction:received', (d) => this._onReactionReceived?.(d));
   }
 
   // ─── Connection ───────────────────────────────────────────────────────────
@@ -126,6 +128,10 @@ export class RoomEngine {
     if (this.socket.connected) this.socket.emit('element:delete', { ids });
   }
 
+  emitReaction(emoji: string, x: number, y: number): void {
+    if (this.socket.connected) this.socket.emit('reaction:send', { emoji, x, y });
+  }
+
   // ─── Callback setters ─────────────────────────────────────────────────────
 
   onConnected(cb: () => void): this { this._onConnected = cb; return this; }
@@ -142,6 +148,7 @@ export class RoomEngine {
   onElementUpdated(cb: (d: { id: string; changes: Partial<CanvasElement> }) => void): this { this._onElementUpdated = cb; return this; }
   onElementDeleted(cb: (d: { ids: string[] }) => void): this { this._onElementDeleted = cb; return this; }
   onRoomFull(cb: (d: { plan: string; limit: number }) => void): this { this._onRoomFull = cb; return this; }
+  onReactionReceived(cb: (d: { userId: string; emoji: string; x: number; y: number; color: string }) => void): this { this._onReactionReceived = cb; return this; }
 
   destroy(): void {
     this.socket.disconnect();

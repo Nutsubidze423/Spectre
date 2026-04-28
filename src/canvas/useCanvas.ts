@@ -13,7 +13,11 @@ import { useRoomStore } from '../store/roomStore';
 import { useBoardStore } from '../store/boardStore';
 import type { CanvasElement, ITool, Tool, ToolEvent } from '../types';
 
-export function useCanvas() {
+interface UseCanvasOptions {
+  onReaction?: (emoji: string, x: number, y: number) => void;
+}
+
+export function useCanvas(options: UseCanvasOptions = {}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<CanvasEngine | null>(null);
   const toolMapRef = useRef<Partial<Record<string, ITool>>>({});
@@ -84,6 +88,7 @@ export function useCanvas() {
       getActiveTool: () => useCanvasStore.getState().activeTool,
       onToolEvent: handleToolEvent,
       onCursorMove: (x, y) => getRoomEngine()?.emitCursorMove(x, y),
+      onReaction: options.onReaction,
     });
 
     // ─── Keyboard shortcuts ──────────────────────────────────────────────

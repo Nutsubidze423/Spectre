@@ -91,6 +91,10 @@ export function useRoom(
       useCanvasStore.getState().deleteElements(ids);
     });
 
+    re.onReactionReceived(({ emoji, x, y }) => {
+      overlayRef.current?.addReaction(emoji, x, y);
+    });
+
     return () => {
       re.destroy();
       setRoomEngine(null);

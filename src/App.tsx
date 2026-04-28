@@ -17,6 +17,8 @@ import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
 import { useBillingStore } from './store/billingStore';
+import { useRoomStore } from './store/roomStore';
+import { getRoomEngine } from './room/RoomEngine';
 import type { Board } from './types';
 import './index.css';
 
@@ -59,9 +61,17 @@ function SaveIndicator() {
 }
 
 function CanvasView() {
-  const { canvasRef, engineRef } = useCanvas();
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayEngineRef = useRef<OverlayEngine | null>(null);
+
+  const { canvasRef, engineRef } = useCanvas({
+    onReaction: (emoji, x, y) => {
+      const color = useRoomStore.getState().myColor ?? '#7c6af7';
+      overlayEngineRef.current?.addReaction(emoji, x, y);
+      getRoomEngine()?.emitReaction(emoji, x, y);
+      void color; // color carried in socket event, not needed locally
+    },
+  });
 
   useEffect(() => {
     const canvas = overlayCanvasRef.current;

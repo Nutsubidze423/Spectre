@@ -6,6 +6,7 @@ interface InputHandlerOptions {
   getActiveTool: () => string;
   onToolEvent: (event: ToolEvent) => void;
   onCursorMove?: (x: number, y: number) => void;
+  onReaction?: (emoji: string, x: number, y: number) => void;
 }
 
 export class InputHandler {
@@ -13,6 +14,7 @@ export class InputHandler {
   private getActiveTool: () => string;
   private onToolEvent: (event: ToolEvent) => void;
   private onCursorMove?: (x: number, y: number) => void;
+  private onReaction?: (emoji: string, x: number, y: number) => void;
   private canvas: HTMLCanvasElement;
 
   // Pan state
@@ -23,12 +25,16 @@ export class InputHandler {
   // Drawing state
   private isPointerDown = false;
 
+  // Last known canvas-space cursor position (for reaction key events)
+  private lastCanvasPoint: Point = { x: 0, y: 0 };
+
   constructor(canvas: HTMLCanvasElement, options: InputHandlerOptions) {
     this.canvas = canvas;
     this.engine = options.engine;
     this.getActiveTool = options.getActiveTool;
     this.onToolEvent = options.onToolEvent;
     this.onCursorMove = options.onCursorMove;
+    this.onReaction = options.onReaction;
     this.attach();
   }
 
@@ -106,6 +112,7 @@ export class InputHandler {
   private onMouseMove = (e: MouseEvent): void => {
     const sp = this.screenPoint(e);
     const cp = this.engine.toCanvasCoords(sp.x, sp.y);
+    this.lastCanvasPoint = cp;
 
     this.onCursorMove?.(cp.x, cp.y);
 
@@ -169,13 +176,26 @@ export class InputHandler {
   // ─── Keyboard ─────────────────────────────────────────────────────────────
 
   private onKeyDown = (e: KeyboardEvent): void => {
-    if (e.code !== 'Space') return;
     const tag = (e.target as HTMLElement).tagName;
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-    if (this.isSpaceDown) return;
-    this.isSpaceDown = true;
-    e.preventDefault();
-    this.updateCursor();
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement).isContentEditable) return;
+
+    if (e.code === 'Space') {
+      if (this.isSpaceDown) return;
+      this.isSpaceDown = true;
+      e.preventDefault();
+      this.updateCursor();
+      return;
+    }
+
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const REACTIONS: Record<string, string> = {
+        '1': '👍', '2': '❤️', '3': '🔥', '4': '😂', '5': '🎉', '6': '👀',
+      };
+      if (e.key in REACTIONS) {
+        e.preventDefault();
+        this.onReaction?.(REACTIONS[e.key], this.lastCanvasPoint.x, this.lastCanvasPoint.y);
+      }
+    }
   };
 
   private onKeyUp = (e: KeyboardEvent): void => {

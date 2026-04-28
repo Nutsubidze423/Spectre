@@ -9,6 +9,18 @@ interface TrackedCursor {
   trail: Array<{ x: number; y: number }>;
 }
 
+interface ActiveReaction {
+  emoji: string;
+  x: number;       // canvas space
+  y: number;       // canvas space
+  startTime: number;
+  vx: number;      // total horizontal screen-px drift at t=1
+}
+
+const REACTION_DURATION = 2000;
+const REACTION_RISE = 80;    // screen px upward over full duration
+const MAX_REACTIONS = 10;
+
 const TRAIL_LENGTH = 5;
 const CURSOR_LIFETIME = 4000;
 const FADE_START = 2000;
@@ -23,6 +35,7 @@ export class OverlayEngine {
   private rafId: number | null = null;
 
   private cursors = new Map<string, TrackedCursor>();
+  private reactions: ActiveReaction[] = [];
   private viewport: Viewport = { offsetX: 0, offsetY: 0, zoom: 1 };
   private lastActivityAt = 0;
 
@@ -55,6 +68,12 @@ export class OverlayEngine {
     this.markActivity();
   }
 
+  addReaction(emoji: string, x: number, y: number): void {
+    if (this.reactions.length >= MAX_REACTIONS) this.reactions.shift();
+    this.reactions.push({ emoji, x, y, startTime: Date.now(), vx: (Math.random() - 0.5) * 60 });
+    this.markActivity();
+  }
+
   removeUser(userId: string): void {
     this.cursors.delete(userId);
     this.markActivity();
@@ -82,7 +101,7 @@ export class OverlayEngine {
       const hasCursors = this.cursors.size > 0;
       const recentActivity = now - this.lastActivityAt < CURSOR_LIFETIME + 200;
 
-      if (hasCursors || recentActivity) {
+      if (hasCursors || recentActivity || this.reactions.length > 0) {
         this.render();
       }
 
@@ -170,6 +189,23 @@ export class OverlayEngine {
       ctx.fillText(label, labelX, labelY);
     }
 
+    ctx.globalAlpha = 1;
+
+    // ─── Reactions ────────────────────────────────────────────────────────────
+    const alive: ActiveReaction[] = [];
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    for (const r of this.reactions) {
+      const progress = (now - r.startTime) / REACTION_DURATION;
+      if (progress >= 1) continue;
+      alive.push(r);
+      const sx = r.x * viewport.zoom + viewport.offsetX + r.vx * progress;
+      const sy = r.y * viewport.zoom + viewport.offsetY - REACTION_RISE * progress;
+      ctx.globalAlpha = 1 - progress;
+      ctx.fillText(r.emoji, sx, sy);
+    }
+    this.reactions = alive;
+    ctx.textAlign = 'left';
     ctx.globalAlpha = 1;
   }
 

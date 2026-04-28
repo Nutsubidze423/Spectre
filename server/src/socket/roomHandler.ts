@@ -347,6 +347,22 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
     socket.to(roomId).emit('element:deleted', { ids });
   });
 
+  // ─── reaction:send ──────────────────────────────────────────────────────────
+
+  socket.on('reaction:send', async (payload: unknown) => {
+    const p = payload as Record<string, unknown>;
+    if (typeof p?.emoji !== 'string' || p.emoji.length > 10) return;
+    if (!isFinite2D(p?.x, p?.y)) return;
+    const roomId = await redis.getSocketRoomId(socket.id);
+    if (!roomId) return;
+    const users = await redis.getRoomUsers(roomId);
+    const me = users.find((u) => u.socketId === socket.id);
+    const color = me?.color ?? '#7c6af7';
+    socket.to(roomId).emit('reaction:received', {
+      userId: socket.id, emoji: p.emoji, x: p.x, y: p.y, color,
+    });
+  });
+
   // ─── disconnect ─────────────────────────────────────────────────────────────
 
   socket.on('disconnect', () => handleLeave(socket, redis, io));
@@ -357,6 +373,7 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
       'room:create', 'room:join', 'room:leave',
       'cursor:move', 'stroke:point', 'stroke:complete',
       'element:add', 'element:update', 'element:delete',
+      'reaction:send',
       'disconnect', 'disconnecting',
     ];
     if (!known.includes(event)) {
