@@ -1,8 +1,26 @@
 import { Router } from 'express';
+import { rateLimit } from 'express-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
 
 const router = Router();
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+// ─── Rate limiting ────────────────────────────────────────────────────────────
+// 10 AI generations per IP per 15 minutes — protects Anthropic API budget
+
+const aiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Too many requests — try again in 15 minutes' },
+});
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const MAX_PROMPT_LENGTH = 500;
+const MAX_BASE64_BYTES = 4 * 1024 * 1024; // ~3 MB decoded image
+const MAX_COORD = 1_000_000;
 
 const SYSTEM_PROMPT = `You are an AI drawing assistant for "Specter", a real-time collaborative whiteboard.
 The canvas has a dark aesthetic (#0a0a0f background). Elements are drawn in a hand-sketched Rough.js style.
@@ -40,16 +58,57 @@ Rules:
 - opacity range: 0.1-1.0
 - Respond with ONLY a valid JSON array — no markdown, no explanation, no code fences`;
 
-router.post('/draw', async (req, res) => {
+// ─── Input validation helper ──────────────────────────────────────────────────
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && isFinite(v);
+}
+
+function validateBounds(b: unknown): b is { x: number; y: number; width: number; height: number } {
+  if (!b || typeof b !== 'object') return false;
+  const { x, y, width, height } = b as Record<string, unknown>;
+  return (
+    isFiniteNumber(x) && isFiniteNumber(y) &&
+    isFiniteNumber(width) && isFiniteNumber(height) &&
+    width > 0 && height > 0 &&
+    Math.abs(x) < MAX_COORD && Math.abs(y) < MAX_COORD &&
+    width < MAX_COORD && height < MAX_COORD
+  );
+}
+
+// ─── Route ────────────────────────────────────────────────────────────────────
+
+router.post('/draw', aiLimiter, async (req, res) => {
   try {
     const { prompt, canvasImageBase64, regionBounds } = req.body as {
-      prompt: string;
-      canvasImageBase64: string;
-      regionBounds: { x: number; y: number; width: number; height: number };
+      prompt: unknown;
+      canvasImageBase64: unknown;
+      regionBounds: unknown;
     };
 
-    if (!prompt || !canvasImageBase64 || !regionBounds) {
-      res.status(400).json({ error: 'Missing required fields' });
+    // Validate prompt
+    if (typeof prompt !== 'string' || prompt.trim().length === 0) {
+      res.status(400).json({ error: 'prompt must be a non-empty string' });
+      return;
+    }
+    if (prompt.length > MAX_PROMPT_LENGTH) {
+      res.status(400).json({ error: `prompt must be under ${MAX_PROMPT_LENGTH} characters` });
+      return;
+    }
+
+    // Validate image
+    if (typeof canvasImageBase64 !== 'string' || canvasImageBase64.length === 0) {
+      res.status(400).json({ error: 'canvasImageBase64 must be a non-empty string' });
+      return;
+    }
+    if (canvasImageBase64.length > MAX_BASE64_BYTES) {
+      res.status(400).json({ error: 'Image too large' });
+      return;
+    }
+
+    // Validate bounds
+    if (!validateBounds(regionBounds)) {
+      res.status(400).json({ error: 'regionBounds must have finite positive width and height' });
       return;
     }
 
@@ -73,7 +132,7 @@ router.post('/draw', async (req, res) => {
             },
             {
               type: 'text',
-              text: `Draw: "${prompt}"
+              text: `Draw: "${prompt.trim()}"
 
 Region bounds (all coordinates must stay inside these):
 - x: ${x} to ${x + width}
@@ -94,7 +153,9 @@ Return only the JSON array.`,
     // Extract JSON array — handles cases where Claude wraps in code fences
     const match = raw.match(/\[[\s\S]*\]/);
     if (!match) {
-      res.status(500).json({ error: 'Claude did not return a JSON array', raw });
+      // Don't expose raw Claude output to client
+      console.error('[ai/draw] no JSON array in Claude response');
+      res.status(500).json({ error: 'AI generation produced an unexpected response' });
       return;
     }
 

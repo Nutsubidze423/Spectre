@@ -5,6 +5,9 @@ dist-ssr/
 .env
 .env.local
 .env.production
+server/.env
+server/.env.local
+server/.env.production
 .DS_Store
 Thumbs.db
 *.log
