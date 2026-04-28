@@ -12,9 +12,9 @@ Deploy: Railway
 
 ## Current Phase
 
-**PHASE 4 — AI Assistant** ✅ Complete
+**PHASE 5 — Persistence + Auth** ✅ Complete
 
-Goal: real-time collaboration via Socket.io + Redis — remote cursors, live strokes, element sync.
+Goal: PostgreSQL + Prisma boards persistence, JWT access+refresh auth, board picker UI.
 
 ## Phase Tracker
 
@@ -24,7 +24,7 @@ Goal: real-time collaboration via Socket.io + Redis — remote cursors, live str
 | 2 | Drawing (pen/shapes/text/eraser/selection + undo) | ✅ Done |
 | 3 | Multiplayer (Socket.io, rooms, remote cursors) | ✅ Done |
 | 4 | AI Assistant (Claude API proxy, AI draw tool) | ✅ Done |
-| 5 | Persistence + Auth (Postgres, Prisma, JWT, boards) | ⬜ Pending |
+| 5 | Persistence + Auth (Postgres, Prisma, JWT, boards) | ✅ Done |
 | 6 | Polish (ghost mode, PWA, cursor trails, perf audit) | ⬜ Pending |
 
 ## Phase 2 Completed
@@ -151,9 +151,32 @@ docker run -d -p 6379:6379 redis  # Redis (Phase 3+)
 - **Multiplayer**: each generated element is also emitted via `getRoomEngine()?.emitElementAdd(el)`
 - **ANTHROPIC_API_KEY**: must be set in `server/.env` before Phase 4 works
 
+## Phase 5 Completed
+
+- [x] `server/package.json` — added cookie-parser + @types/cookie-parser
+- [x] `server/src/middleware/auth.ts` — JWT verify, attaches `req.userId` + `req.userEmail`; Express global namespace augmented
+- [x] `server/src/routes/auth.ts` — POST register (registerLimiter 5/hr), POST login (loginLimiter 10/15min), POST refresh (HttpOnly cookie), POST logout (clear cookie). bcryptjs 12 rounds, constant-time compare on login
+- [x] `server/src/routes/boards.ts` — all routes behind `requireAuth`; GET list, POST create (50/user cap), GET :id (+ latest snapshot), PATCH :id rename, DELETE :id, POST :id/save (creates snapshot, keeps last 10, touches updatedAt)
+- [x] `server/src/index.ts` — cookieParser(), cors credentials:true, authRouter + boardsRouter wired
+- [x] `src/types/index.ts` — AuthUser, Board, AppView
+- [x] `src/api/client.ts` — apiFetch wrapper: Authorization Bearer header, silent 401→refresh→retry-once, calls logout() on second 401
+- [x] `src/store/authStore.ts` — user, accessToken, appView, setSession, logout, setAppView, tryRestoreSession (hits /api/auth/refresh on load)
+- [x] `src/store/boardStore.ts` — boards, activeBoardId, isSaving; fetchBoards, createBoard, deleteBoard, saveBoard
+- [x] `src/components/AuthModal.tsx` — login/register tabs, Framer Motion reveal, glassmorphic dark form, inline error
+- [x] `src/components/BoardManager.tsx` — header w/ logout, board grid (220px columns), create form, delete with confirm, Framer Motion card animations
+- [x] `src/App.tsx` — state machine: loading→auth→boards→canvas; CanvasView extracted (avoids re-mounting canvas on view switch); 30s auto-save interval; "← Boards" back button
+- [x] `src/index.css` — app-loading, auth overlay/modal/tabs/form, board manager header/grid/cards/delete confirm, back-to-boards button
+
+## Key Architecture Notes (Phase 5)
+
+- **Auth tokens**: access JWT (15m, Zustand memory) + refresh JWT (7d, HttpOnly `specter_refresh` cookie, path `/api/auth`)
+- **tryRestoreSession**: called once on App mount → POST /api/auth/refresh → sets session or shows auth screen
+- **apiFetch retry**: on 401 calls `tryRefresh()` which hits refresh endpoint, updates store, retries original. Second 401 → logout.
+- **Snapshot rotation**: `POST /api/boards/:id/save` keeps only last 10 `BoardSnapshot` rows per board
+- **CanvasView**: extracted as separate component in App.tsx so canvas/OverlayEngine don't unmount when switching to boards view
+- **Auto-save**: `setInterval(30s)` in CanvasView, reads live `useCanvasStore.getState().elements`, only runs when `activeBoardId` is set
+
 ## Notes for Next Claude Session
 
-- Phase 5 starts with: Postgres + Prisma schema, JWT auth (`/api/auth`), board CRUD (`/api/boards`), persist canvas to DB
-- Auth: access + refresh token pattern, bcryptjs password hashing
-- Board schema: User → Board → BoardSnapshot (elements JSON per save)
-- Frontend: login/register pages, board picker, auto-save every 30s
+- Phase 6: Polish — ghost mode cursor trails, PWA manifest, performance audit (canvas render budget), possible cursor name label fade
+- Also consider: board thumbnails (capture canvas → upload on save), public share links (read-only canvas load via shareToken), board rename inline in BoardManager
