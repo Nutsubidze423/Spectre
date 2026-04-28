@@ -105,6 +105,26 @@ export interface Room {
   hostId: string;
 }
 
+// ─── Auth + boards ────────────────────────────────────────────────────────────
+
+export interface AuthUser {
+  id: string;
+  email: string;
+  username: string;
+}
+
+export interface Board {
+  id: string;
+  name: string;
+  thumbnailUrl?: string;
+  isPublic: boolean;
+  shareToken: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AppView = 'loading' | 'auth' | 'boards' | 'canvas';
+
 // ─── AI assistant ─────────────────────────────────────────────────────────────
 
 export interface AIDrawRequest {
