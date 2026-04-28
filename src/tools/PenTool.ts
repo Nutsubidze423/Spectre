@@ -1,4 +1,4 @@
-import type { ITool, ToolEvent, CanvasElement, Point } from '../types';
+import type { ITool, ToolEvent, CanvasElement, Point, Rect } from '../types';
 import type { CanvasEngine } from '../canvas/CanvasEngine';
 
 export interface ToolContext {
@@ -13,6 +13,7 @@ export interface ToolContext {
   pushSnapshot: () => void;
   onStrokePoint?: (elementId: string, point: Point) => void;
   onStrokeComplete?: (element: CanvasElement) => void;
+  onAiRegion?: (rect: Rect) => void;
 }
 
 // Min pixel distance between recorded points (avoids redundant points)

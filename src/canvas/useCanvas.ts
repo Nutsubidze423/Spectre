@@ -56,6 +56,9 @@ export function useCanvas() {
         useCanvasStore.getState().addElement(el);
         getRoomEngine()?.emitStrokeComplete(el);
       },
+      onAiRegion: (rect) => {
+        useCanvasStore.getState().setAiRegion(rect);
+      },
     };
 
     toolMapRef.current = {

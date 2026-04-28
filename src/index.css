@@ -516,6 +516,152 @@ body {
 .room-join-btn:hover { background: var(--accent-hi); }
 .room-join-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* ─── AI prompt input ────────────────────────────────────────────────────── */
+
+.ai-prompt-wrap {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 400;
+  pointer-events: none;
+}
+
+.ai-region-outline {
+  position: fixed;
+  border: 1.5px dashed var(--accent);
+  border-radius: 4px;
+  background: rgba(124, 106, 247, 0.04);
+  box-shadow: 0 0 0 1px var(--accent-lo), 0 0 20px rgba(124, 106, 247, 0.15);
+  pointer-events: none;
+  animation: ai-region-pulse 2s ease-in-out infinite;
+}
+
+@keyframes ai-region-pulse {
+  0%, 100% { box-shadow: 0 0 0 1px var(--accent-lo), 0 0 20px rgba(124, 106, 247, 0.15); }
+  50%       { box-shadow: 0 0 0 1px var(--accent-md), 0 0 28px rgba(124, 106, 247, 0.28); }
+}
+
+.ai-prompt-panel {
+  pointer-events: all;
+  background: var(--panel);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--accent-hi);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 300px;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.7),
+    0 0 0 1px var(--accent-lo),
+    0 0 24px rgba(124, 106, 247, 0.12);
+}
+
+.ai-prompt-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ai-icon {
+  color: var(--accent);
+  font-size: 14px;
+  animation: specter-mist 2s ease-in-out infinite;
+}
+
+.ai-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.06em;
+  flex: 1;
+}
+
+.ai-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.12s;
+}
+.ai-close-btn:hover { color: var(--text); }
+
+.ai-input-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ai-text-input {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 7px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  caret-color: var(--accent);
+  transition: border-color 0.15s;
+}
+.ai-text-input:focus { border-color: var(--accent); }
+.ai-text-input::placeholder { color: var(--text-dim); }
+.ai-text-input:disabled { opacity: 0.5; }
+
+.ai-generate-btn {
+  background: var(--accent-md);
+  border: 1px solid var(--accent-hi);
+  border-radius: 7px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 80px;
+  white-space: nowrap;
+}
+.ai-generate-btn:hover:not(:disabled) { background: var(--accent-hi); }
+.ai-generate-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.ai-generate-btn.loading { background: var(--accent-lo); cursor: wait; }
+
+.ai-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--accent-md);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: ai-spin 0.7s linear infinite;
+}
+
+@keyframes ai-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ai-thinking-text {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  animation: specter-mist 1.8s ease-in-out infinite;
+}
+
+.ai-error {
+  font-size: 11px;
+  color: #f76a6a;
+  font-family: 'Inter', sans-serif;
+  overflow: hidden;
+}
+
 /* ─── Specter thinking animation (Phase 4) ───────────────────────────────── */
 
 @keyframes specter-mist {

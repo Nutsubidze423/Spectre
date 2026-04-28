@@ -239,6 +239,36 @@ export class CanvasEngine {
   getViewport(): Viewport { return { ...this.viewport }; }
   getCanvas(): HTMLCanvasElement { return this.canvas; }
 
+  captureRegion(rect: Rect): string {
+    const { zoom, offsetX, offsetY } = this.viewport;
+    const sx = rect.x * zoom + offsetX;
+    const sy = rect.y * zoom + offsetY;
+    const sw = rect.width * zoom;
+    const sh = rect.height * zoom;
+
+    const cx = Math.max(0, sx);
+    const cy = Math.max(0, sy);
+    const cw = Math.min(sw, this.cssWidth - cx);
+    const ch = Math.min(sh, this.cssHeight - cy);
+    if (cw <= 0 || ch <= 0) return '';
+
+    const off = document.createElement('canvas');
+    off.width = Math.ceil(cw);
+    off.height = Math.ceil(ch);
+    const offCtx = off.getContext('2d');
+    if (!offCtx) return '';
+
+    offCtx.drawImage(
+      this.canvas,
+      cx * this.dpr, cy * this.dpr,
+      cw * this.dpr, ch * this.dpr,
+      0, 0,
+      cw, ch
+    );
+
+    return off.toDataURL('image/png').split(',')[1];
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   destroy(): void {

@@ -5,6 +5,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import { RedisService } from './services/redisService';
 import { registerRoomHandler } from './socket/roomHandler';
+import aiRouter from './routes/ai';
 
 dotenv.config();
 
@@ -21,10 +22,10 @@ const io = new Server(httpServer, {
 app.use(cors({ origin: CLIENT_URL }));
 app.use(express.json({ limit: '10mb' }));
 
-// Routes (Phase 3-5)
+// Routes
 // app.use('/api/auth', authRouter);
 // app.use('/api/boards', boardsRouter);
-// app.use('/api/ai', aiRouter);
+app.use('/api/ai', aiRouter);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: Date.now() });

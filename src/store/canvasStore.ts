@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { CanvasElement, Tool, Viewport } from '../types';
+import type { CanvasElement, Tool, Viewport, Rect } from '../types';
 
 const MAX_HISTORY = 50;
 
@@ -35,6 +35,10 @@ interface CanvasState {
   setOpacity: (opacity: number) => void;
   setViewport: (viewport: Viewport) => void;
   clearCanvas: () => void;
+
+  // AI assistant
+  aiRegion: Rect | null;
+  setAiRegion: (rect: Rect | null) => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -47,6 +51,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   viewport: { offsetX: 0, offsetY: 0, zoom: 1 },
   past: [],
   future: [],
+  aiRegion: null,
 
   addElement: (element) =>
     set((s) => ({ elements: [...s.elements, element] })),
@@ -104,4 +109,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   setOpacity: (opacity) => set({ opacity }),
   setViewport: (viewport) => set({ viewport }),
   clearCanvas: () => set({ elements: [], selectedIds: [], past: [], future: [] }),
+
+  aiRegion: null,
+  setAiRegion: (rect) => set({ aiRegion: rect }),
 }));
