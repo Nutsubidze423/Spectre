@@ -95,6 +95,10 @@ export function useRoom(
       overlayRef.current?.addReaction(emoji, x, y);
     });
 
+    re.onChatReceived(({ userId, text, x, y, color }) => {
+      overlayRef.current?.addChatMessage(userId, text, x, y, color);
+    });
+
     return () => {
       re.destroy();
       setRoomEngine(null);

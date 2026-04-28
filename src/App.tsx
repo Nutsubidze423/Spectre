@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCanvas } from './canvas/useCanvas';
 import { useRoom } from './room/useRoom';
@@ -13,6 +13,7 @@ import { AccountPage } from './components/AccountPage';
 import { UpgradeModal } from './components/UpgradeModal';
 import { UsageIndicator } from './components/UsageIndicator';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
+import { ChatInput } from './components/ChatInput';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -64,13 +65,24 @@ function CanvasView() {
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const overlayEngineRef = useRef<OverlayEngine | null>(null);
 
+  // Chat state
+  const [chatPos, setChatPos] = useState<{ sx: number; sy: number; cx: number; cy: number } | null>(null);
+  const chatActiveRef = useRef(false);
+  useEffect(() => { chatActiveRef.current = chatPos !== null; }, [chatPos]);
+
+  const handleChatActivate = useCallback((pos: { sx: number; sy: number; cx: number; cy: number } | null) => {
+    setChatPos(pos);
+  }, []);
+
   const { canvasRef, engineRef } = useCanvas({
     onReaction: (emoji, x, y) => {
       const color = useRoomStore.getState().myColor ?? '#7c6af7';
       overlayEngineRef.current?.addReaction(emoji, x, y);
       getRoomEngine()?.emitReaction(emoji, x, y);
-      void color; // color carried in socket event, not needed locally
+      void color;
     },
+    onChatActivate: handleChatActivate,
+    isChatActive: () => chatActiveRef.current,
   });
 
   useEffect(() => {
@@ -142,6 +154,20 @@ function CanvasView() {
 
       <SaveIndicator />
       <ShortcutsPanel />
+
+      {chatPos && (
+        <ChatInput
+          screenX={chatPos.sx}
+          screenY={chatPos.sy}
+          onSend={(text) => {
+            const color = useRoomStore.getState().myColor ?? '#7c6af7';
+            overlayEngineRef.current?.addChatMessage('local', text, chatPos.cx, chatPos.cy, color);
+            getRoomEngine()?.emitChatMessage(text, chatPos.cx, chatPos.cy);
+            setChatPos(null);
+          }}
+          onCancel={() => setChatPos(null)}
+        />
+      )}
 
       <AnimatePresence>
         {aiRegion && (

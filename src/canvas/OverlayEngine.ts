@@ -17,9 +17,22 @@ interface ActiveReaction {
   vx: number;      // total horizontal screen-px drift at t=1
 }
 
+interface ActiveChatMessage {
+  userId: string;
+  text: string;
+  x: number;       // canvas space
+  y: number;       // canvas space
+  color: string;
+  startTime: number;
+}
+
 const REACTION_DURATION = 2000;
 const REACTION_RISE = 80;    // screen px upward over full duration
 const MAX_REACTIONS = 10;
+
+const CHAT_DURATION = 3500;  // 3s display + 0.5s fade
+const CHAT_FADE_START = 3000;
+const MAX_CHAT_MESSAGES = 10;
 
 const TRAIL_LENGTH = 5;
 const CURSOR_LIFETIME = 4000;
@@ -36,6 +49,7 @@ export class OverlayEngine {
 
   private cursors = new Map<string, TrackedCursor>();
   private reactions: ActiveReaction[] = [];
+  private chatMessages: ActiveChatMessage[] = [];
   private viewport: Viewport = { offsetX: 0, offsetY: 0, zoom: 1 };
   private lastActivityAt = 0;
 
@@ -65,6 +79,12 @@ export class OverlayEngine {
     } else {
       this.cursors.set(userId, { x, y, color, name, lastSeen: Date.now(), trail: [] });
     }
+    this.markActivity();
+  }
+
+  addChatMessage(userId: string, text: string, x: number, y: number, color: string): void {
+    if (this.chatMessages.length >= MAX_CHAT_MESSAGES) this.chatMessages.shift();
+    this.chatMessages.push({ userId, text, x, y, color, startTime: Date.now() });
     this.markActivity();
   }
 
@@ -101,7 +121,7 @@ export class OverlayEngine {
       const hasCursors = this.cursors.size > 0;
       const recentActivity = now - this.lastActivityAt < CURSOR_LIFETIME + 200;
 
-      if (hasCursors || recentActivity || this.reactions.length > 0) {
+      if (hasCursors || recentActivity || this.reactions.length > 0 || this.chatMessages.length > 0) {
         this.render();
       }
 
@@ -206,6 +226,48 @@ export class OverlayEngine {
     }
     this.reactions = alive;
     ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+
+    // ─── Chat messages ───────────────────────────────────────────────────────
+    ctx.font = '13px "JetBrains Mono", monospace';
+    ctx.textBaseline = 'middle';
+    const chatAlive: ActiveChatMessage[] = [];
+    for (const msg of this.chatMessages) {
+      const elapsed = now - msg.startTime;
+      if (elapsed >= CHAT_DURATION) continue;
+      chatAlive.push(msg);
+      const alpha = elapsed < CHAT_FADE_START
+        ? 1
+        : 1 - (elapsed - CHAT_FADE_START) / (CHAT_DURATION - CHAT_FADE_START);
+
+      const sx = msg.x * viewport.zoom + viewport.offsetX;
+      const sy = msg.y * viewport.zoom + viewport.offsetY;
+
+      const textW = ctx.measureText(msg.text).width;
+      const padX = 10;
+      const bubbleW = textW + padX * 2;
+      const bubbleH = 28;
+      const bubbleX = sx - bubbleW / 2;
+      const bubbleY = sy - 52 - bubbleH;
+
+      ctx.globalAlpha = alpha * 0.92;
+      ctx.fillStyle = '#0d0d18';
+      ctx.beginPath();
+      ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 14);
+      ctx.fill();
+
+      ctx.globalAlpha = alpha;
+      ctx.strokeStyle = msg.color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(bubbleX, bubbleY, bubbleW, bubbleH, 14);
+      ctx.stroke();
+
+      ctx.fillStyle = '#e8e8f0';
+      ctx.fillText(msg.text, bubbleX + padX, bubbleY + bubbleH / 2);
+    }
+    this.chatMessages = chatAlive;
+    ctx.textBaseline = 'alphabetic';
     ctx.globalAlpha = 1;
   }
 

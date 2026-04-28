@@ -347,6 +347,22 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
     socket.to(roomId).emit('element:deleted', { ids });
   });
 
+  // ─── chat:message ────────────────────────────────────────────────────────────
+
+  socket.on('chat:message', async (payload: unknown) => {
+    const p = payload as Record<string, unknown>;
+    if (typeof p?.text !== 'string' || p.text.length === 0 || p.text.length > 80) return;
+    if (!isFinite2D(p?.x, p?.y)) return;
+    const roomId = await redis.getSocketRoomId(socket.id);
+    if (!roomId) return;
+    const users = await redis.getRoomUsers(roomId);
+    const me = users.find((u) => u.socketId === socket.id);
+    const color = me?.color ?? '#7c6af7';
+    socket.to(roomId).emit('chat:received', {
+      userId: socket.id, text: p.text, x: p.x, y: p.y, color,
+    });
+  });
+
   // ─── reaction:send ──────────────────────────────────────────────────────────
 
   socket.on('reaction:send', async (payload: unknown) => {
@@ -373,7 +389,7 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
       'room:create', 'room:join', 'room:leave',
       'cursor:move', 'stroke:point', 'stroke:complete',
       'element:add', 'element:update', 'element:delete',
-      'reaction:send',
+      'reaction:send', 'chat:message',
       'disconnect', 'disconnecting',
     ];
     if (!known.includes(event)) {

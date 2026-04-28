@@ -1,12 +1,16 @@
 import type { CanvasEngine } from './CanvasEngine';
 import type { Point, ToolEvent } from '../types';
 
+interface ChatPos { sx: number; sy: number; cx: number; cy: number; }
+
 interface InputHandlerOptions {
   engine: CanvasEngine;
   getActiveTool: () => string;
   onToolEvent: (event: ToolEvent) => void;
   onCursorMove?: (x: number, y: number) => void;
   onReaction?: (emoji: string, x: number, y: number) => void;
+  onChatActivate?: (pos: ChatPos | null) => void;
+  isChatActive?: () => boolean;
 }
 
 export class InputHandler {
@@ -15,6 +19,8 @@ export class InputHandler {
   private onToolEvent: (event: ToolEvent) => void;
   private onCursorMove?: (x: number, y: number) => void;
   private onReaction?: (emoji: string, x: number, y: number) => void;
+  private onChatActivate?: (pos: ChatPos | null) => void;
+  private isChatActive?: () => boolean;
   private canvas: HTMLCanvasElement;
 
   // Pan state
@@ -25,8 +31,9 @@ export class InputHandler {
   // Drawing state
   private isPointerDown = false;
 
-  // Last known canvas-space cursor position (for reaction key events)
+  // Last known cursor positions
   private lastCanvasPoint: Point = { x: 0, y: 0 };
+  private lastScreenPoint: Point = { x: 0, y: 0 };
 
   constructor(canvas: HTMLCanvasElement, options: InputHandlerOptions) {
     this.canvas = canvas;
@@ -35,6 +42,8 @@ export class InputHandler {
     this.onToolEvent = options.onToolEvent;
     this.onCursorMove = options.onCursorMove;
     this.onReaction = options.onReaction;
+    this.onChatActivate = options.onChatActivate;
+    this.isChatActive = options.isChatActive;
     this.attach();
   }
 
@@ -113,8 +122,9 @@ export class InputHandler {
     const sp = this.screenPoint(e);
     const cp = this.engine.toCanvasCoords(sp.x, sp.y);
     this.lastCanvasPoint = cp;
+    this.lastScreenPoint = sp;
 
-    this.onCursorMove?.(cp.x, cp.y);
+    if (!this.isChatActive?.()) this.onCursorMove?.(cp.x, cp.y);
 
     if (this.isPanning && this.panLast) {
       this.engine.pan(sp.x - this.panLast.x, sp.y - this.panLast.y);
@@ -184,6 +194,21 @@ export class InputHandler {
       this.isSpaceDown = true;
       e.preventDefault();
       this.updateCursor();
+      return;
+    }
+
+    if (e.key === '/') {
+      e.preventDefault();
+      if (this.isChatActive?.()) {
+        this.onChatActivate?.(null);
+      } else {
+        this.onChatActivate?.({
+          sx: this.lastScreenPoint.x,
+          sy: this.lastScreenPoint.y,
+          cx: this.lastCanvasPoint.x,
+          cy: this.lastCanvasPoint.y,
+        });
+      }
       return;
     }
 

@@ -1786,3 +1786,52 @@ body {
   font-family: 'Inter', sans-serif;
   text-align: right;
 }
+
+/* ─── Cursor chat ────────────────────────────────────────────────────────── */
+
+.chat-input-wrap {
+  position: fixed;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.chat-input-wrap * {
+  pointer-events: auto;
+}
+
+.chat-input {
+  background: rgba(10, 10, 20, 0.92);
+  border: 1.5px solid rgba(124, 106, 247, 0.45);
+  border-radius: 20px;
+  color: #e8e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  padding: 6px 14px;
+  outline: none;
+  width: 220px;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.15s;
+}
+
+.chat-input:focus {
+  border-color: #7c6af7;
+}
+
+.chat-input::placeholder {
+  color: #4a4a6a;
+}
+
+.chat-char-count {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: #6b6b8a;
+}
+
+.chat-char-count--limit {
+  color: #f76a6a;
+}

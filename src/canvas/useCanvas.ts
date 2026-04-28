@@ -13,8 +13,12 @@ import { useRoomStore } from '../store/roomStore';
 import { useBoardStore } from '../store/boardStore';
 import type { CanvasElement, ITool, Tool, ToolEvent } from '../types';
 
+interface ChatPos { sx: number; sy: number; cx: number; cy: number; }
+
 interface UseCanvasOptions {
   onReaction?: (emoji: string, x: number, y: number) => void;
+  onChatActivate?: (pos: ChatPos | null) => void;
+  isChatActive?: () => boolean;
 }
 
 export function useCanvas(options: UseCanvasOptions = {}) {
@@ -89,6 +93,8 @@ export function useCanvas(options: UseCanvasOptions = {}) {
       onToolEvent: handleToolEvent,
       onCursorMove: (x, y) => getRoomEngine()?.emitCursorMove(x, y),
       onReaction: options.onReaction,
+      onChatActivate: options.onChatActivate,
+      isChatActive: options.isChatActive,
     });
 
     // ─── Keyboard shortcuts ──────────────────────────────────────────────
