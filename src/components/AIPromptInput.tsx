@@ -2,10 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore } from '../store/canvasStore';
 import { getRoomEngine } from '../room/RoomEngine';
+import { apiFetch } from '../api/client';
+import { useBillingStore } from '../store/billingStore';
 import type { CanvasEngine } from '../canvas/CanvasEngine';
 import type { CanvasElement, Rect } from '../types';
-
-const SERVER_URL = (import.meta as { env: Record<string, string> }).env.VITE_SERVER_URL ?? 'http://localhost:3001';
 
 interface Props {
   region: Rect;
@@ -62,9 +62,8 @@ export function AIPromptInput({ region, engineRef, onClose }: Props) {
     setErrorMsg('');
 
     try {
-      const res = await fetch(`${SERVER_URL}/api/ai/draw`, {
+      const res = await apiFetch('/api/ai/draw', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt: trimmed,
           canvasImageBase64: base64,
@@ -72,9 +71,16 @@ export function AIPromptInput({ region, engineRef, onClose }: Props) {
         }),
       });
 
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({})) as { plan?: string; limit?: number };
+        useBillingStore.getState().setLimitHit({ type: 'ai', plan: data.plan ?? 'FREE', limit: data.limit });
+        onClose();
+        return;
+      }
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: 'Server error' }));
-        throw new Error(err.error ?? 'Unknown error');
+        throw new Error((err as { error?: string }).error ?? 'Unknown error');
       }
 
       const data = await res.json() as { elements: Partial<CanvasElement>[] };

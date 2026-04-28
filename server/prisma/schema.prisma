@@ -7,13 +7,31 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Plan {
+  FREE
+  PRO
+  TEAM
+}
+
+enum SubStatus {
+  ACTIVE
+  CANCELLED
+  PAST_DUE
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
 model User {
-  id           String   @id @default(uuid())
-  email        String   @unique
-  username     String   @unique
-  passwordHash String
-  createdAt    DateTime @default(now())
-  boards       Board[]
+  id            String         @id @default(uuid())
+  email         String         @unique
+  username      String         @unique
+  passwordHash  String
+  createdAt     DateTime       @default(now())
+  boards        Board[]
+  subscription  Subscription?
+  usageTracking UsageTracking[]
 }
 
 model Board {
@@ -35,4 +53,26 @@ model BoardSnapshot {
   board        Board    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   elementsJson Json
   createdAt    DateTime @default(now())
+}
+
+model Subscription {
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String    @unique
+  stripeSubscriptionId String?   @unique
+  plan                 Plan      @default(FREE)
+  status               SubStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime  @default(now())
+}
+
+model UsageTracking {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date            DateTime @db.Date
+  aiRequestsCount Int      @default(0)
+
+  @@unique([userId, date])
 }

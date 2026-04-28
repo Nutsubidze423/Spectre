@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { RoomEngine, setRoomEngine } from './RoomEngine';
 import { useCanvasStore } from '../store/canvasStore';
 import { useRoomStore } from '../store/roomStore';
+import { useBillingStore } from '../store/billingStore';
 import type { CanvasEngine } from '../canvas/CanvasEngine';
 import type { OverlayEngine } from '../canvas/OverlayEngine';
 import type { CanvasElement } from '../types';
@@ -17,7 +18,7 @@ export function useRoom(
   const { setElements } = useCanvasStore();
   const {
     setRoom, setUsers, addUser, removeUser,
-    updateUserCursor, setIsConnected, setMyUserId, setMyColor,
+    updateUserCursor, setIsConnected, setMyUserId, setMyColor, setRoomFull,
   } = useRoomStore();
 
   useEffect(() => {
@@ -44,6 +45,11 @@ export function useRoom(
 
     re.onRoomError(({ message }) => {
       console.error('[room error]', message);
+    });
+
+    re.onRoomFull((data) => {
+      setRoomFull(data);
+      useBillingStore.getState().setLimitHit({ type: 'room', plan: data.plan, limit: data.limit });
     });
 
     re.onUserJoined((user) => addUser(user));

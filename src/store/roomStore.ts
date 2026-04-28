@@ -7,6 +7,7 @@ interface RoomState {
   isConnected: boolean;
   myUserId: string | null;
   myColor: string | null;
+  roomFull: { plan: string; limit: number } | null;
 
   setRoom: (room: Room | null) => void;
   setUsers: (users: RemoteUser[]) => void;
@@ -16,6 +17,7 @@ interface RoomState {
   setIsConnected: (connected: boolean) => void;
   setMyUserId: (id: string) => void;
   setMyColor: (color: string) => void;
+  setRoomFull: (data: { plan: string; limit: number } | null) => void;
 }
 
 export const useRoomStore = create<RoomState>((set) => ({
@@ -24,6 +26,7 @@ export const useRoomStore = create<RoomState>((set) => ({
   isConnected: false,
   myUserId: null,
   myColor: null,
+  roomFull: null,
 
   setRoom: (room) => set({ room }),
   setUsers: (users) => set({ users }),
@@ -44,4 +47,5 @@ export const useRoomStore = create<RoomState>((set) => ({
   setIsConnected: (connected) => set({ isConnected: connected }),
   setMyUserId: (id) => set({ myUserId: id }),
   setMyColor: (color) => set({ myColor: color }),
+  setRoomFull: (data) => set({ roomFull: data }),
 }));

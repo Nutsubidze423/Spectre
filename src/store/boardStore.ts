@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { Board } from '../types';
 import { apiFetch } from '../api/client';
+import { useBillingStore } from './billingStore';
 
 interface BoardState {
   boards: Board[];
@@ -58,6 +59,11 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         method: 'POST',
         body: JSON.stringify({ name }),
       });
+      if (res.status === 403) {
+        const data = await res.json().catch(() => ({})) as { plan?: string; limit?: number };
+        useBillingStore.getState().setLimitHit({ type: 'boards', plan: data.plan ?? 'FREE', limit: data.limit });
+        return null;
+      }
       if (!res.ok) return null;
       const data = (await res.json()) as { board: Board };
       get().addBoard(data.board);

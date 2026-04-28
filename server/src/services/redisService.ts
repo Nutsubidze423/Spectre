@@ -37,11 +37,15 @@ export class RedisService {
     return (await this.client.exists(`room:${roomId}`)) === 1;
   }
 
-  async createRoom(roomId: string, hostSocketId: string): Promise<void> {
+  async createRoom(roomId: string, hostSocketId: string, hostUserId?: string): Promise<void> {
     const pipe = this.client.pipeline();
-    pipe.hset(`room:${roomId}`, { hostSocketId, createdAt: Date.now() });
+    pipe.hset(`room:${roomId}`, { hostSocketId, createdAt: Date.now(), ...(hostUserId ? { hostUserId } : {}) });
     pipe.expire(`room:${roomId}`, ROOM_TTL);
     await pipe.exec();
+  }
+
+  async getRoomHostUserId(roomId: string): Promise<string | null> {
+    return this.client.hget(`room:${roomId}`, 'hostUserId');
   }
 
   async refreshRoomTTL(roomId: string): Promise<void> {

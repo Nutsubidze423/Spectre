@@ -8,7 +8,6 @@ router.use(requireAuth);
 
 const MAX_SNAPSHOTS = 10;
 const MAX_BOARD_NAME = 100;
-const MAX_BOARDS_PER_USER = 50;
 
 // ─── GET /api/boards — list user's boards ──────────────────────────────────────
 
@@ -45,12 +44,6 @@ router.post('/', async (req, res) => {
     }
 
     const trimmed = name.trim().slice(0, MAX_BOARD_NAME);
-
-    const count = await prisma.board.count({ where: { userId: req.userId } });
-    if (count >= MAX_BOARDS_PER_USER) {
-      res.status(403).json({ error: `Board limit reached (max ${MAX_BOARDS_PER_USER})` });
-      return;
-    }
 
     const board = await prisma.board.create({
       data: { userId: req.userId, name: trimmed },

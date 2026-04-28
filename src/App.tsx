@@ -8,9 +8,14 @@ import { RoomPanel } from './components/RoomPanel';
 import { AIPromptInput } from './components/AIPromptInput';
 import { AuthModal } from './components/AuthModal';
 import { BoardManager } from './components/BoardManager';
+import { PricingPage } from './components/PricingPage';
+import { AccountPage } from './components/AccountPage';
+import { UpgradeModal } from './components/UpgradeModal';
+import { UsageIndicator } from './components/UsageIndicator';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
+import { useBillingStore } from './store/billingStore';
 import type { Board } from './types';
 import './index.css';
 
@@ -112,6 +117,7 @@ function CanvasView() {
         onJoinRoom={joinRoom}
         onLeaveRoom={leaveRoom}
       />
+      <UsageIndicator />
 
       {activeBoardId && (
         <button
@@ -143,10 +149,17 @@ export default function App() {
   const tryRestoreSession = useAuthStore((s) => s.tryRestoreSession);
   const setAppView = useAuthStore((s) => s.setAppView);
   const setActiveBoardId = useBoardStore((s) => s.setActiveBoardId);
+  const fetchSubscription = useBillingStore((s) => s.fetchSubscription);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     void tryRestoreSession();
   }, [tryRestoreSession]);
+
+  // Fetch billing info whenever a user session is established
+  useEffect(() => {
+    if (user) void fetchSubscription();
+  }, [user, fetchSubscription]);
 
   function handleOpenBoard(board: Board) {
     setActiveBoardId(board.id);
@@ -162,12 +175,22 @@ export default function App() {
   }
 
   if (appView === 'auth') {
-    return <AuthModal onSuccess={() => setAppView('boards')} />;
+    return <AuthModal onSuccess={() => { setAppView('boards'); void fetchSubscription(); }} />;
   }
 
-  if (appView === 'boards') {
-    return <BoardManager onOpenBoard={handleOpenBoard} />;
+  if (appView === 'pricing') {
+    return <PricingPage />;
   }
 
-  return <CanvasView />;
+  if (appView === 'account') {
+    return <AccountPage />;
+  }
+
+  return (
+    <>
+      {appView === 'boards' && <BoardManager onOpenBoard={handleOpenBoard} />}
+      {appView === 'canvas' && <CanvasView />}
+      <UpgradeModal />
+    </>
+  );
 }

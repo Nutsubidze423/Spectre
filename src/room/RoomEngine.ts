@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 import type { CanvasElement, RemoteUser } from '../types';
+import { useAuthStore } from '../store/authStore';
 
 let _instance: RoomEngine | null = null;
 export function getRoomEngine(): RoomEngine | null { return _instance; }
@@ -41,9 +42,14 @@ export class RoomEngine {
   private _onElementAdded?: (data: { element: CanvasElement }) => void;
   private _onElementUpdated?: (data: { id: string; changes: Partial<CanvasElement> }) => void;
   private _onElementDeleted?: (data: { ids: string[] }) => void;
+  private _onRoomFull?: (data: { plan: string; limit: number }) => void;
 
   constructor(url: string) {
-    this.socket = io(url, { autoConnect: false });
+    const token = useAuthStore.getState().accessToken;
+    this.socket = io(url, {
+      autoConnect: false,
+      auth: token ? { token } : {},
+    });
     this.setupListeners();
   }
 
@@ -61,6 +67,7 @@ export class RoomEngine {
     this.socket.on('element:added', (d) => this._onElementAdded?.(d));
     this.socket.on('element:updated', (d) => this._onElementUpdated?.(d));
     this.socket.on('element:deleted', (d) => this._onElementDeleted?.(d));
+    this.socket.on('room:full', (d) => this._onRoomFull?.(d));
   }
 
   // ─── Connection ───────────────────────────────────────────────────────────
@@ -134,6 +141,7 @@ export class RoomEngine {
   onElementAdded(cb: (d: { element: CanvasElement }) => void): this { this._onElementAdded = cb; return this; }
   onElementUpdated(cb: (d: { id: string; changes: Partial<CanvasElement> }) => void): this { this._onElementUpdated = cb; return this; }
   onElementDeleted(cb: (d: { ids: string[] }) => void): this { this._onElementDeleted = cb; return this; }
+  onRoomFull(cb: (d: { plan: string; limit: number }) => void): this { this._onRoomFull = cb; return this; }
 
   destroy(): void {
     this.socket.disconnect();

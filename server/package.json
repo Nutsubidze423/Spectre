@@ -20,6 +20,7 @@
     "ioredis": "^5.4.2",
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.1",
+    "stripe": "^22.1.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

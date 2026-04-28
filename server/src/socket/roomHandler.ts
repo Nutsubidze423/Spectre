@@ -1,5 +1,8 @@
 import type { Server, Socket } from 'socket.io';
 import type { RedisService, RoomUser } from '../services/redisService';
+import { prisma } from '../db/client';
+import { LIMITS } from '../routes/billing';
+import type { Plan } from '@prisma/client';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -123,7 +126,8 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
         color,
       };
 
-      await redis.createRoom(roomId, socket.id);
+      const hostUserId = socket.data.userId as string | undefined;
+      await redis.createRoom(roomId, socket.id, hostUserId);
       await redis.addUserToRoom(roomId, socket.id, user);
       await redis.setSocketRoom(socket.id, roomId);
 
@@ -156,8 +160,22 @@ export function registerRoomHandler(io: Server, socket: Socket, redis: RedisServ
       }
 
       const users = await redis.getRoomUsers(roomId);
-      if (users.length >= MAX_USERS_PER_ROOM) {
-        socket.emit('room:error', { message: 'Room is full' });
+
+      // Plan-based collaborator limit (uses host's plan)
+      const hostUserId = await redis.getRoomHostUserId(roomId);
+      let collaboratorLimit = MAX_USERS_PER_ROOM;
+      let hostPlan: Plan = 'FREE';
+      if (hostUserId) {
+        const sub = await prisma.subscription.findUnique({
+          where: { userId: hostUserId },
+          select: { plan: true },
+        });
+        hostPlan = sub?.plan ?? 'FREE';
+        collaboratorLimit = Math.min(LIMITS[hostPlan].collaborators, MAX_USERS_PER_ROOM);
+      }
+
+      if (users.length >= collaboratorLimit) {
+        socket.emit('room:full', { plan: hostPlan, limit: collaboratorLimit });
         return;
       }
 

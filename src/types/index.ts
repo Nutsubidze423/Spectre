@@ -123,7 +123,7 @@ export interface Board {
   updatedAt: string;
 }
 
-export type AppView = 'loading' | 'auth' | 'boards' | 'canvas';
+export type AppView = 'loading' | 'auth' | 'boards' | 'canvas' | 'pricing' | 'account';
 
 // ─── AI assistant ─────────────────────────────────────────────────────────────
 
