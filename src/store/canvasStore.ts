@@ -43,6 +43,8 @@ interface CanvasState {
   // UI panels
   shortcutsOpen: boolean;
   setShortcutsOpen: (open: boolean) => void;
+  searchOpen: boolean;
+  setSearchOpen: (open: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -57,6 +59,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   future: [],
   aiRegion: null,
   shortcutsOpen: false,
+  searchOpen: false,
 
   addElement: (element) =>
     set((s) => ({ elements: [...s.elements, element] })),
@@ -119,4 +122,5 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   setAiRegion: (rect) => set({ aiRegion: rect }),
 
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
+  setSearchOpen: (open) => set({ searchOpen: open }),
 }));

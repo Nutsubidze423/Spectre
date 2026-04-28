@@ -26,10 +26,12 @@ export class CanvasEngine {
 
   private elements: CanvasElement[] = [];
   private selectedIds: string[] = [];
+  private highlightIds = new Set<string>();
   private activeStroke: ActiveStroke | null = null;
   private previewElement: Partial<CanvasElement> | null = null;
   private selectionRect: Rect | null = null;
   private remoteStrokes = new Map<string, ActiveStroke>();
+  private panAnimId: number | null = null;
 
   private onViewportChange?: (v: Viewport) => void;
 
@@ -92,6 +94,11 @@ export class CanvasEngine {
 
   setSelectedIds(ids: string[]): void {
     this.selectedIds = ids;
+    this.markDirty();
+  }
+
+  setHighlightIds(ids: string[]): void {
+    this.highlightIds = new Set(ids);
     this.markDirty();
   }
 
@@ -199,6 +206,47 @@ export class CanvasEngine {
     }
     if (this.selectionRect) {
       this.elementRenderer.renderSelectionRect(this.selectionRect);
+    }
+    if (this.highlightIds.size > 0) {
+      this.renderSearchHighlights();
+    }
+
+    ctx.restore();
+  }
+
+  private renderSearchHighlights(): void {
+    const { ctx, viewport } = this;
+    const invZoom = 1 / viewport.zoom;
+
+    ctx.save();
+    ctx.strokeStyle = '#7c6af7';
+    ctx.lineWidth = 2 * invZoom;
+    ctx.shadowColor = '#7c6af7';
+    ctx.shadowBlur = 12 * invZoom;
+    ctx.globalAlpha = 0.85;
+
+    for (const el of this.elements) {
+      if (!this.highlightIds.has(el.id)) continue;
+
+      let x: number, y: number, w: number, h: number;
+      if (el.points && el.points.length > 0) {
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        for (const pt of el.points) {
+          if (pt.x < minX) minX = pt.x;
+          if (pt.y < minY) minY = pt.y;
+          if (pt.x > maxX) maxX = pt.x;
+          if (pt.y > maxY) maxY = pt.y;
+        }
+        x = minX - 8 * invZoom; y = minY - 8 * invZoom;
+        w = (maxX - minX) + 16 * invZoom; h = (maxY - minY) + 16 * invZoom;
+      } else {
+        x = el.x - 6 * invZoom; y = el.y - 6 * invZoom;
+        w = (el.width || 120) + 12 * invZoom; h = (el.height || 32) + 12 * invZoom;
+      }
+
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, 6 * invZoom);
+      ctx.stroke();
     }
 
     ctx.restore();
@@ -328,10 +376,52 @@ export class CanvasEngine {
     this.markDirty();
   }
 
+  smoothPanToCanvas(cx: number, cy: number): void {
+    if (this.panAnimId !== null) {
+      cancelAnimationFrame(this.panAnimId);
+      this.panAnimId = null;
+    }
+
+    const { zoom, offsetX, offsetY } = this.viewport;
+    const sx = cx * zoom + offsetX;
+    const sy = cy * zoom + offsetY;
+    const margin = 60;
+
+    // Skip if center already within viewport
+    if (
+      sx >= margin && sx <= this.cssWidth - margin &&
+      sy >= margin && sy <= this.cssHeight - margin
+    ) return;
+
+    const targetOffX = this.cssWidth / 2 - cx * zoom;
+    const targetOffY = this.cssHeight / 2 - cy * zoom;
+    const startOffX = this.viewport.offsetX;
+    const startOffY = this.viewport.offsetY;
+    const startTime = performance.now();
+    const DURATION = 280;
+
+    const animate = (now: number) => {
+      const t = Math.min(1, (now - startTime) / DURATION);
+      const ease = 1 - Math.pow(1 - t, 3);
+      this.viewport.offsetX = startOffX + (targetOffX - startOffX) * ease;
+      this.viewport.offsetY = startOffY + (targetOffY - startOffY) * ease;
+      this.onViewportChange?.({ ...this.viewport });
+      this.markDirty();
+      if (t < 1) {
+        this.panAnimId = requestAnimationFrame(animate);
+      } else {
+        this.panAnimId = null;
+      }
+    };
+    this.panAnimId = requestAnimationFrame(animate);
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   destroy(): void {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
+    if (this.panAnimId !== null) cancelAnimationFrame(this.panAnimId);
     this.rafId = null;
+    this.panAnimId = null;
   }
 }

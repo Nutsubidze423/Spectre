@@ -168,6 +168,12 @@ export function useCanvas(options: UseCanvasOptions = {}) {
         engine.fitToContent(useCanvasStore.getState().elements, 40);
       }
 
+      // ─── Cmd+F — open search ─────────────────────────────────────────────
+      if (ctrl && e.key === 'f') {
+        e.preventDefault();
+        useCanvasStore.getState().setSearchOpen(true);
+      }
+
       // ─── Cmd+S — save board ───────────────────────────────────────────────
       if (ctrl && e.key === 's') {
         e.preventDefault();

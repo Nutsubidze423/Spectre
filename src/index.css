@@ -1787,6 +1787,100 @@ body {
   text-align: right;
 }
 
+/* ─── Canvas search ─────────────────────────────────────────────────────── */
+
+.search-bar {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(12, 12, 22, 0.94);
+  border: 1px solid rgba(124, 106, 247, 0.3);
+  border-radius: 12px;
+  padding: 8px 12px;
+  width: 420px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(124, 106, 247, 0.08);
+}
+
+.search-icon {
+  flex-shrink: 0;
+  color: #6b6b8a;
+}
+
+.search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #e8e8f0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  min-width: 0;
+}
+
+.search-input::placeholder {
+  color: #4a4a6a;
+}
+
+.search-count {
+  flex-shrink: 0;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: #7c6af7;
+  white-space: nowrap;
+}
+
+.search-count--empty {
+  color: #6b6b8a;
+}
+
+.search-nav {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.search-nav-btn {
+  background: rgba(124, 106, 247, 0.1);
+  border: 1px solid rgba(124, 106, 247, 0.2);
+  border-radius: 6px;
+  color: #7c6af7;
+  font-size: 11px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s;
+  padding: 0;
+}
+
+.search-nav-btn:hover {
+  background: rgba(124, 106, 247, 0.22);
+}
+
+.search-close {
+  background: none;
+  border: none;
+  color: #4a4a6a;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: color 0.1s;
+  flex-shrink: 0;
+}
+
+.search-close:hover {
+  color: #8888a8;
+}
+
 /* ─── Cursor chat ────────────────────────────────────────────────────────── */
 
 .chat-input-wrap {

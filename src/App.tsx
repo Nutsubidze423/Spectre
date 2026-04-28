@@ -14,6 +14,7 @@ import { UpgradeModal } from './components/UpgradeModal';
 import { UsageIndicator } from './components/UsageIndicator';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { ChatInput } from './components/ChatInput';
+import { SearchBar } from './components/SearchBar';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -105,6 +106,8 @@ function CanvasView() {
 
   const aiRegion = useCanvasStore((s) => s.aiRegion);
   const setAiRegion = useCanvasStore((s) => s.setAiRegion);
+  const searchOpen = useCanvasStore((s) => s.searchOpen);
+  const setSearchOpen = useCanvasStore((s) => s.setSearchOpen);
 
   // Auto-save every 30s
   const activeBoardId = useBoardStore((s) => s.activeBoardId);
@@ -154,6 +157,18 @@ function CanvasView() {
 
       <SaveIndicator />
       <ShortcutsPanel />
+
+      <AnimatePresence>
+        {searchOpen && (
+          <SearchBar
+            engineRef={engineRef}
+            onClose={() => {
+              setSearchOpen(false);
+              engineRef.current?.setHighlightIds([]);
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {chatPos && (
         <ChatInput
