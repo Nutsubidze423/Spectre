@@ -12,6 +12,7 @@ import { PricingPage } from './components/PricingPage';
 import { AccountPage } from './components/AccountPage';
 import { UpgradeModal } from './components/UpgradeModal';
 import { UsageIndicator } from './components/UsageIndicator';
+import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -130,6 +131,7 @@ function CanvasView() {
       )}
 
       <SaveIndicator />
+      <ShortcutsPanel />
 
       <AnimatePresence>
         {aiRegion && (

@@ -39,6 +39,10 @@ interface CanvasState {
   // AI assistant
   aiRegion: Rect | null;
   setAiRegion: (rect: Rect | null) => void;
+
+  // UI panels
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -52,6 +56,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   past: [],
   future: [],
   aiRegion: null,
+  shortcutsOpen: false,
 
   addElement: (element) =>
     set((s) => ({ elements: [...s.elements, element] })),
@@ -112,4 +117,6 @@ export const useCanvasStore = create<CanvasState>((set) => ({
 
   aiRegion: null,
   setAiRegion: (rect) => set({ aiRegion: rect }),
+
+  setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
 }));

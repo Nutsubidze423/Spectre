@@ -284,6 +284,50 @@ export class CanvasEngine {
     return off.toDataURL('image/jpeg', 0.75);
   }
 
+  // ─── Viewport helpers ─────────────────────────────────────────────────────
+
+  resetViewport(): void {
+    this.viewport = { offsetX: 0, offsetY: 0, zoom: 1 };
+    this.onViewportChange?.({ ...this.viewport });
+    this.markDirty();
+  }
+
+  fitToContent(elements: CanvasElement[], padding = 40): void {
+    if (elements.length === 0) {
+      this.resetViewport();
+      return;
+    }
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const el of elements) {
+      if (el.points && el.points.length > 0) {
+        for (const pt of el.points) {
+          if (minX > pt.x) minX = pt.x;
+          if (minY > pt.y) minY = pt.y;
+          if (maxX < pt.x) maxX = pt.x;
+          if (maxY < pt.y) maxY = pt.y;
+        }
+      } else {
+        if (minX > el.x) minX = el.x;
+        if (minY > el.y) minY = el.y;
+        if (maxX < el.x + el.width) maxX = el.x + el.width;
+        if (maxY < el.y + el.height) maxY = el.y + el.height;
+      }
+    }
+
+    const bboxW = maxX - minX || 1;
+    const bboxH = maxY - minY || 1;
+    const availW = this.cssWidth - 2 * padding;
+    const availH = this.cssHeight - 2 * padding;
+    const zoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, Math.min(availW / bboxW, availH / bboxH)));
+    const offsetX = padding + (availW - bboxW * zoom) / 2 - minX * zoom;
+    const offsetY = padding + (availH - bboxH * zoom) / 2 - minY * zoom;
+
+    this.viewport = { offsetX, offsetY, zoom };
+    this.onViewportChange?.({ ...this.viewport });
+    this.markDirty();
+  }
+
   // ─── Cleanup ──────────────────────────────────────────────────────────────
 
   destroy(): void {

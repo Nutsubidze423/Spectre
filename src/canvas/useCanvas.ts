@@ -10,7 +10,8 @@ import { SelectionTool } from '../tools/SelectionTool';
 import { AISelectionTool } from '../tools/AISelectionTool';
 import { getRoomEngine } from '../room/RoomEngine';
 import { useRoomStore } from '../store/roomStore';
-import type { CanvasElement, ITool, ToolEvent } from '../types';
+import { useBoardStore } from '../store/boardStore';
+import type { CanvasElement, ITool, Tool, ToolEvent } from '../types';
 
 export function useCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -120,6 +121,90 @@ export function useCanvas() {
         useCanvasStore.getState().setSelectedIds([]);
         engine.setSelectedIds([]);
         engine.setSelectionRect(null);
+        useCanvasStore.getState().setShortcutsOpen(false);
+      }
+
+      // ─── Tool shortcuts ────────────────────────────────────────────────────
+      const TOOL_KEYS: Partial<Record<string, Tool>> = {
+        v: 'select', p: 'pen', r: 'rect', e: 'ellipse',
+        l: 'line',   a: 'arrow', t: 'text', x: 'eraser',
+      };
+      const keyLower = e.key.toLowerCase();
+      if (!ctrl && !e.shiftKey && keyLower in TOOL_KEYS) {
+        const { activeTool } = useCanvasStore.getState();
+        toolMapRef.current[activeTool]?.cancel();
+        useCanvasStore.getState().setActiveTool(TOOL_KEYS[keyLower]!);
+      }
+
+      // ─── Stroke width [/] ─────────────────────────────────────────────────
+      if (!ctrl && e.key === '[') {
+        const w = useCanvasStore.getState().strokeWidth;
+        useCanvasStore.getState().setStrokeWidth(Math.max(1, w - 1));
+      }
+      if (!ctrl && e.key === ']') {
+        const w = useCanvasStore.getState().strokeWidth;
+        useCanvasStore.getState().setStrokeWidth(Math.min(20, w + 1));
+      }
+
+      // ─── Reset zoom ───────────────────────────────────────────────────────
+      if (!ctrl && e.key === '0') {
+        e.preventDefault();
+        engine.resetViewport();
+      }
+
+      // ─── Fit to content ───────────────────────────────────────────────────
+      if (!ctrl && keyLower === 'f') {
+        engine.fitToContent(useCanvasStore.getState().elements, 40);
+      }
+
+      // ─── Cmd+S — save board ───────────────────────────────────────────────
+      if (ctrl && e.key === 's') {
+        e.preventDefault();
+        const { activeBoardId } = useBoardStore.getState();
+        if (activeBoardId) {
+          void useBoardStore.getState().saveBoard(activeBoardId, useCanvasStore.getState().elements);
+        }
+      }
+
+      // ─── Cmd+A — select all ───────────────────────────────────────────────
+      if (ctrl && e.key === 'a') {
+        e.preventDefault();
+        const ids = useCanvasStore.getState().elements.map((el) => el.id);
+        useCanvasStore.getState().setActiveTool('select');
+        useCanvasStore.getState().setSelectedIds(ids);
+        engine.setSelectedIds(ids);
+      }
+
+      // ─── Cmd+D — duplicate selected ───────────────────────────────────────
+      if (ctrl && e.key === 'd') {
+        e.preventDefault();
+        const { selectedIds, elements } = useCanvasStore.getState();
+        const selected = elements.filter((el) => selectedIds.includes(el.id));
+        if (selected.length === 0) return;
+        useCanvasStore.getState().pushSnapshot();
+        const now = Date.now();
+        const copies: CanvasElement[] = selected.map((el) => ({
+          ...el,
+          id: crypto.randomUUID(),
+          x: el.x + 20,
+          y: el.y + 20,
+          points: el.points?.map((pt) => ({ x: pt.x + 20, y: pt.y + 20 })),
+          createdAt: now,
+          version: 0,
+        }));
+        for (const el of copies) {
+          useCanvasStore.getState().addElement(el);
+          getRoomEngine()?.emitElementAdd(el);
+        }
+        const newIds = copies.map((el) => el.id);
+        useCanvasStore.getState().setSelectedIds(newIds);
+        engine.setSelectedIds(newIds);
+      }
+
+      // ─── ? — toggle shortcuts panel ───────────────────────────────────────
+      if (e.key === '?') {
+        const { shortcutsOpen } = useCanvasStore.getState();
+        useCanvasStore.getState().setShortcutsOpen(!shortcutsOpen);
       }
     };
 

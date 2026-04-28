@@ -1650,3 +1650,139 @@ body {
 .account-btn--primary { background: rgba(124, 106, 247, 0.18); color: #a89af9; border: 1px solid rgba(124, 106, 247, 0.3); }
 .account-btn--upgrade { background: #7c6af7; color: #fff; }
 .account-btn--danger { background: rgba(247, 106, 106, 0.12); color: #f76a6a; border: 1px solid rgba(247, 106, 106, 0.2); }
+
+/* ─── Shortcuts Panel ───────────────────────────────────────────────────────── */
+
+.sc-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+}
+
+.sc-panel {
+  background: rgba(15, 15, 25, 0.92);
+  border: 1px solid rgba(120, 120, 180, 0.18);
+  border-radius: 16px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.55);
+  width: min(680px, 95vw);
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.sc-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.5rem 0.9rem;
+  border-bottom: 1px solid rgba(120, 120, 180, 0.1);
+  position: sticky;
+  top: 0;
+  background: rgba(15, 15, 25, 0.92);
+  backdrop-filter: blur(16px);
+  z-index: 1;
+}
+
+.sc-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b6b8a;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.sc-close {
+  background: none;
+  border: none;
+  color: #6b6b8a;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0.25rem 0.4rem;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+.sc-close:hover { color: #e8e8f0; background: rgba(120, 120, 180, 0.1); }
+
+.sc-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 2rem;
+  padding: 1.25rem 1.5rem 1.5rem;
+}
+
+@media (max-width: 480px) {
+  .sc-body { grid-template-columns: 1fr; }
+}
+
+.sc-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.sc-col-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #4a4a6a;
+  font-family: 'JetBrains Mono', monospace;
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.2rem;
+  border-bottom: 1px solid rgba(120, 120, 180, 0.08);
+}
+
+.sc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.28rem 0;
+}
+
+.sc-keys {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  flex-shrink: 0;
+}
+
+.sc-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  height: 1.6rem;
+  padding: 0 0.4rem;
+  background: rgba(124, 106, 247, 0.08);
+  border: 1px solid rgba(124, 106, 247, 0.25);
+  border-radius: 5px;
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: #a89af9;
+  line-height: 1;
+}
+
+.sc-plain {
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  color: #4a4a6a;
+  padding: 0 0.1rem;
+}
+
+.sc-desc {
+  font-size: 0.82rem;
+  color: #8888a8;
+  font-family: 'Inter', sans-serif;
+  text-align: right;
+}

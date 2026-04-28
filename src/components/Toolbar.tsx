@@ -7,11 +7,11 @@ const TOOLS: { id: Tool; icon: string; label: string }[] = [
   { id: 'select',    icon: '↖',  label: 'Select (V)' },
   { id: 'pen',       icon: '✏',  label: 'Pen (P)' },
   { id: 'rect',      icon: '▭',  label: 'Rectangle (R)' },
-  { id: 'ellipse',   icon: '○',  label: 'Ellipse (O)' },
+  { id: 'ellipse',   icon: '○',  label: 'Ellipse (E)' },
   { id: 'line',      icon: '╱',  label: 'Line (L)' },
   { id: 'arrow',     icon: '→',  label: 'Arrow (A)' },
   { id: 'text',      icon: 'T',  label: 'Text (T)' },
-  { id: 'eraser',    icon: '⌫',  label: 'Eraser (E)' },
+  { id: 'eraser',    icon: '⌫',  label: 'Eraser (X)' },
   { id: 'ai-select', icon: '✦',  label: 'AI Draw (I)' },
 ];
 
@@ -31,8 +31,9 @@ export function Toolbar() {
   const setTool      = useCanvasStore((s) => s.setActiveTool);
   const setColor     = useCanvasStore((s) => s.setColor);
   const setStroke    = useCanvasStore((s) => s.setStrokeWidth);
-  const undo         = useCanvasStore((s) => s.undo);
-  const redo         = useCanvasStore((s) => s.redo);
+  const undo            = useCanvasStore((s) => s.undo);
+  const redo            = useCanvasStore((s) => s.redo);
+  const setShortcutsOpen = useCanvasStore((s) => s.setShortcutsOpen);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHex, setCustomHex] = useState('');
@@ -156,6 +157,16 @@ export function Toolbar() {
           whileTap={{ scale: 0.92 }}
           title="Redo (Ctrl+Y)"
         >↪</motion.button>
+
+        <div className="toolbar-divider" />
+
+        <motion.button
+          className="tool-btn"
+          onClick={() => setShortcutsOpen(true)}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
+          title="Keyboard shortcuts (?)"
+        >?</motion.button>
       </motion.div>
 
       {/* ── Zoom badge ── */}
