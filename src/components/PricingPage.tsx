@@ -22,7 +22,7 @@ const PLANS = [
     period: 'per month',
     features: [
       'Unlimited boards',
-      '100 AI draws / day',
+      '20 AI draws / day',
       '20 collaborators per room',
     ],
     highlighted: true,
@@ -34,7 +34,7 @@ const PLANS = [
     period: 'per month',
     features: [
       'Unlimited boards',
-      'Unlimited AI draws',
+      '60 AI draws / day',
       '50 collaborators per room',
     ],
   },

@@ -20,8 +20,8 @@ function getStripe(): StripeClient {
 
 export const LIMITS: Record<Plan, { collaborators: number; aiRequestsPerDay: number; savedBoards: number }> = {
   FREE:  { collaborators: 5,  aiRequestsPerDay: 3,   savedBoards: 3  },
-  PRO:   { collaborators: 20, aiRequestsPerDay: 100,  savedBoards: -1 },
-  TEAM:  { collaborators: 50, aiRequestsPerDay: -1,   savedBoards: -1 },
+  PRO:   { collaborators: 20, aiRequestsPerDay: 20,   savedBoards: -1 },
+  TEAM:  { collaborators: 50, aiRequestsPerDay: 60,   savedBoards: -1 },
 };
 
 // ─── Helper: get or create Stripe customer ────────────────────────────────────
