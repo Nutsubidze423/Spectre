@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
+import { getPaddle } from '../lib/paddle';
 
 const PLANS = [
   {
@@ -40,6 +41,17 @@ const PLANS = [
   },
 ];
 
+function openCheckout(transactionId: string) {
+  getPaddle()?.Checkout.open({
+    transactionId,
+    eventCallback: (data) => {
+      if ((data as { name: string }).name === 'checkout.completed') {
+        setTimeout(() => void useBillingStore.getState().fetchSubscription(), 2000);
+      }
+    },
+  });
+}
+
 export function PricingPage() {
   const setAppView = useAuthStore((s) => s.setAppView);
   const sub = useBillingStore((s) => s.sub);
@@ -48,9 +60,9 @@ export function PricingPage() {
 
   async function handleUpgrade(planId: 'PRO' | 'TEAM') {
     setLoading(planId);
-    const url = await createCheckoutSession(planId);
+    const transactionId = await createCheckoutSession(planId);
     setLoading(null);
-    if (url) window.location.href = url;
+    if (transactionId) openCheckout(transactionId);
   }
 
   const currentPlan = sub?.plan ?? 'FREE';
@@ -105,12 +117,23 @@ export function PricingPage() {
                   disabled={isCurrent || loading === plan.id}
                   onClick={() => void handleUpgrade(plan.id)}
                 >
-                  {loading === plan.id ? 'Redirecting…' : isCurrent ? 'Current plan' : `Upgrade to ${plan.label}`}
+                  {loading === plan.id ? 'Loading…' : isCurrent ? 'Current plan' : `Upgrade to ${plan.label}`}
                 </button>
               )}
             </motion.div>
           );
         })}
+      </div>
+
+      <div className="pricing-payment-methods">
+        <span className="pricing-payment-label">Secure payments via</span>
+        <div className="pricing-payment-icons">
+          <span className="payment-badge">Visa</span>
+          <span className="payment-badge">Mastercard</span>
+          <span className="payment-badge">Apple Pay</span>
+          <span className="payment-badge">Google Pay</span>
+          <span className="payment-badge">PayPal</span>
+        </div>
       </div>
     </div>
   );

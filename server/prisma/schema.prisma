@@ -56,15 +56,15 @@ model BoardSnapshot {
 }
 
 model Subscription {
-  id                   String    @id @default(uuid())
-  userId               String    @unique
-  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripeCustomerId     String    @unique
-  stripeSubscriptionId String?   @unique
-  plan                 Plan      @default(FREE)
-  status               SubStatus @default(ACTIVE)
-  currentPeriodEnd     DateTime?
-  createdAt            DateTime  @default(now())
+  id                    String    @id @default(uuid())
+  userId                String    @unique
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paddleCustomerId      String?   @unique
+  paddleSubscriptionId  String?   @unique
+  plan                  Plan      @default(FREE)
+  status                SubStatus @default(ACTIVE)
+  currentPeriodEnd      DateTime?
+  createdAt             DateTime  @default(now())
 }
 
 model UsageTracking {

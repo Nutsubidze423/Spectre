@@ -21,6 +21,7 @@ import { useBoardStore } from './store/boardStore';
 import { useBillingStore } from './store/billingStore';
 import { useRoomStore } from './store/roomStore';
 import { getRoomEngine } from './room/RoomEngine';
+import { initPaddle } from './lib/paddle';
 import type { Board } from './types';
 import './index.css';
 
@@ -207,6 +208,7 @@ export default function App() {
 
   useEffect(() => {
     void tryRestoreSession();
+    void initPaddle();
   }, [tryRestoreSession]);
 
   // Fetch billing info whenever a user session is established

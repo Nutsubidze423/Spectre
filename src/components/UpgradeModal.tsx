@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
 import { useRoomStore } from '../store/roomStore';
+import { getPaddle } from '../lib/paddle';
 
 const LIMIT_MESSAGES: Record<string, { title: string; body: string }> = {
   ai:    { title: 'AI draw limit reached', body: 'You\'ve used all your AI draws for today. Upgrade to get more.' },
@@ -26,8 +27,17 @@ export function UpgradeModal() {
 
   async function handleUpgrade() {
     dismiss();
-    const url = await createCheckoutSession('PRO');
-    if (url) window.location.href = url;
+    const transactionId = await createCheckoutSession('PRO');
+    if (transactionId) {
+      getPaddle()?.Checkout.open({
+        transactionId,
+        eventCallback: (data) => {
+          if ((data as { name: string }).name === 'checkout.completed') {
+            setTimeout(() => void useBillingStore.getState().fetchSubscription(), 2000);
+          }
+        },
+      });
+    }
   }
 
   function handleSeePlans() {

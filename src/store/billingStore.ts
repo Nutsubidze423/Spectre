@@ -61,8 +61,8 @@ export const useBillingStore = create<BillingState>((set) => ({
         body: JSON.stringify({ plan }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { url: string };
-      return data.url;
+      const data = (await res.json()) as { transactionId: string };
+      return data.transactionId;
     } catch {
       return null;
     }
@@ -74,8 +74,8 @@ export const useBillingStore = create<BillingState>((set) => ({
         method: 'POST',
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { url: string };
-      return data.url;
+      const data = (await res.json()) as { portalUrl: string };
+      return data.portalUrl;
     } catch {
       return null;
     }
