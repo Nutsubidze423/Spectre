@@ -15,6 +15,7 @@ import { UsageIndicator } from './components/UsageIndicator';
 import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { ChatInput } from './components/ChatInput';
 import { SearchBar } from './components/SearchBar';
+import { ThinkingPartnerPanel } from './components/ThinkingPartnerPanel';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -109,6 +110,7 @@ function CanvasView() {
   const setAiRegion = useCanvasStore((s) => s.setAiRegion);
   const searchOpen = useCanvasStore((s) => s.searchOpen);
   const setSearchOpen = useCanvasStore((s) => s.setSearchOpen);
+  const thinkingPartnerOpen = useCanvasStore((s) => s.thinkingPartnerOpen);
 
   // Auto-save every 30s
   const activeBoardId = useBoardStore((s) => s.activeBoardId);
@@ -193,6 +195,10 @@ function CanvasView() {
             onClose={() => setAiRegion(null)}
           />
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {thinkingPartnerOpen && <ThinkingPartnerPanel />}
       </AnimatePresence>
     </div>
   );

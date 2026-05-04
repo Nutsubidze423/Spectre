@@ -34,6 +34,8 @@ export function Toolbar() {
   const undo            = useCanvasStore((s) => s.undo);
   const redo            = useCanvasStore((s) => s.redo);
   const setShortcutsOpen = useCanvasStore((s) => s.setShortcutsOpen);
+  const thinkingPartnerOpen = useCanvasStore((s) => s.thinkingPartnerOpen);
+  const setThinkingPartnerOpen = useCanvasStore((s) => s.setThinkingPartnerOpen);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHex, setCustomHex] = useState('');
@@ -167,6 +169,25 @@ export function Toolbar() {
           whileTap={{ scale: 0.92 }}
           title="Keyboard shortcuts (?)"
         >?</motion.button>
+
+        <div className="toolbar-divider" />
+
+        <motion.button
+          className={`tool-btn${thinkingPartnerOpen ? ' active' : ''}`}
+          onClick={() => setThinkingPartnerOpen(!thinkingPartnerOpen)}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
+          title="Thinking Partner (M)"
+        >
+          ◎
+          {thinkingPartnerOpen && (
+            <motion.div
+              className="tool-active-bg"
+              layoutId="active-tool"
+              transition={{ type: 'spring', stiffness: 400, damping: 32 }}
+            />
+          )}
+        </motion.button>
       </motion.div>
 
       {/* ── Zoom badge ── */}

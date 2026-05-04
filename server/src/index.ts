@@ -9,6 +9,7 @@ import { Server } from 'socket.io';
 import { RedisService } from './services/redisService';
 import { registerRoomHandler } from './socket/roomHandler';
 import aiRouter from './routes/ai';
+import thinkingPartnerRouter from './routes/thinkingPartner';
 import authRouter from './routes/auth';
 import boardsRouter from './routes/boards';
 import billingRouter, { webhookHandler } from './routes/billing';
@@ -71,6 +72,9 @@ app.use('/api/boards', boardsRouter);
 // AI draw: require auth + plan-based usage check
 app.post('/api/ai/draw', requireAuth, checkAIAccess, (_req, _res, next) => next());
 app.use('/api/ai', express.json({ limit: '5mb' }), aiRouter);
+
+// Thinking partner: auth required, own rate limiter inside router
+app.use('/api/ai/thinking-partner', requireAuth, thinkingPartnerRouter);
 
 app.use('/api/billing', billingRouter);
 
