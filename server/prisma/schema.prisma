@@ -24,27 +24,42 @@ enum SubStatus {
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  username      String         @unique
-  passwordHash  String
-  createdAt     DateTime       @default(now())
-  boards        Board[]
-  subscription  Subscription?
-  usageTracking UsageTracking[]
+  id              String          @id @default(uuid())
+  email           String          @unique
+  username        String          @unique
+  passwordHash    String
+  createdAt       DateTime        @default(now())
+  boards          Board[]
+  subscription    Subscription?
+  usageTracking   UsageTracking[]
+  sessionMemories SessionMemory[]
 }
 
 model Board {
-  id           String          @id @default(uuid())
-  userId       String
-  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  thumbnailUrl String?
-  isPublic     Boolean         @default(false)
-  shareToken   String          @unique @default(uuid())
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
-  snapshots    BoardSnapshot[]
+  id              String          @id @default(uuid())
+  userId          String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  thumbnailUrl    String?
+  isPublic        Boolean         @default(false)
+  shareToken      String          @unique @default(uuid())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  snapshots       BoardSnapshot[]
+  sessionMemories SessionMemory[]
+}
+
+model SessionMemory {
+  id          String   @id @default(uuid())
+  userId      String
+  boardId     String?
+  createdAt   DateTime @default(now())
+  summaryText String   @db.Text
+  keyTopics   String[] @default([])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  board       Board?   @relation(fields: [boardId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt(sort: Desc)])
 }
 
 model BoardSnapshot {

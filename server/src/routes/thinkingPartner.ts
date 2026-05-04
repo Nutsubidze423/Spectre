@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import Anthropic from '@anthropic-ai/sdk';
+import { prisma } from '../db/client';
 
 const router = Router();
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -75,6 +76,31 @@ router.post('/', tpLimiter, async (req, res) => {
   const padX = vw * 0.38;
   const padY = vh * 0.38;
 
+  // Fetch user's recent memories silently — used for context injection + memory link nodes
+  const memories = await prisma.sessionMemory.findMany({
+    where: { userId: req.userId },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { createdAt: true, summaryText: true, keyTopics: true },
+  }).catch(() => []);
+
+  let memoryContext = '';
+  if (memories.length > 0) {
+    const lines = memories.map((m) => {
+      const date = m.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const topics = m.keyTopics.length > 0 ? ` — topics: ${m.keyTopics.join(', ')}` : '';
+      return `[${date}] ${m.summaryText}${topics}`;
+    });
+    memoryContext = `This user's recent whiteboard sessions (for context):\n${lines.join('\n')}\n\nIf the current topic STRONGLY matches a past session, emit one purple memory link node: rect color "#7c6af7" width 220 height 56 opacity 0.85, followed by text element "Explored before — [date]" placed near the most relevant node you're drawing. Only emit this if there is a clear topical match. Do not emit it speculatively.`;
+  }
+
+  const systemBlocks: Anthropic.Messages.TextBlockParam[] = [
+    { type: 'text', text: SYSTEM_PROMPT },
+    ...(memoryContext
+      ? [{ type: 'text' as const, text: memoryContext, cache_control: { type: 'ephemeral' as const } }]
+      : []),
+  ];
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
   res.setHeader('Connection', 'keep-alive');
@@ -84,7 +110,7 @@ router.post('/', tpLimiter, async (req, res) => {
   const stream = client.messages.stream({
     model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
-    system: SYSTEM_PROMPT,
+    system: systemBlocks,
     messages: [
       {
         role: 'user',

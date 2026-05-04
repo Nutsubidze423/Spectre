@@ -127,12 +127,42 @@ function CanvasView() {
   const setAppView = useAuthStore((s) => s.setAppView);
   const setThumbnail = useBoardStore((s) => s.setThumbnail);
 
+  function buildCanvasText(elements: import('./types').CanvasElement[]): string {
+    const texts = elements
+      .filter((el) => el.type === 'text' && el.text)
+      .map((el) => el.text as string)
+      .slice(0, 80);
+    const counts = elements.reduce<Record<string, number>>((acc, el) => {
+      acc[el.type] = (acc[el.type] ?? 0) + 1;
+      return acc;
+    }, {});
+    const shape = Object.entries(counts).map(([t, c]) => `${c}×${t}`).join(', ');
+    return `Canvas: ${shape}. Labels: ${texts.join(' | ')}`;
+  }
+
   function handleBackToBoards() {
+    const elements = useCanvasStore.getState().elements;
+
     // Capture thumbnail before leaving
     if (activeBoardId && engineRef.current) {
       const thumb = engineRef.current.captureFullCanvas();
       if (thumb) setThumbnail(activeBoardId, thumb);
     }
+
+    // Fire-and-forget: generate memory summary if session had meaningful content
+    const textCount = elements.filter((el) => el.type === 'text' && el.text).length;
+    if (activeBoardId && textCount >= 3) {
+      void import('./api/client').then(({ apiFetch }) =>
+        apiFetch('/api/memory/generate', {
+          method: 'POST',
+          body: JSON.stringify({
+            canvasText: buildCanvasText(elements),
+            boardId: activeBoardId,
+          }),
+        })
+      );
+    }
+
     setAppView('boards');
   }
 

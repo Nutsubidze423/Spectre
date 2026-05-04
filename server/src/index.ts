@@ -10,6 +10,7 @@ import { RedisService } from './services/redisService';
 import { registerRoomHandler } from './socket/roomHandler';
 import aiRouter from './routes/ai';
 import thinkingPartnerRouter from './routes/thinkingPartner';
+import memoryRouter from './routes/memory';
 import authRouter from './routes/auth';
 import boardsRouter from './routes/boards';
 import billingRouter, { webhookHandler } from './routes/billing';
@@ -75,6 +76,9 @@ app.use('/api/ai', express.json({ limit: '5mb' }), aiRouter);
 
 // Thinking partner: auth required, own rate limiter inside router
 app.use('/api/ai/thinking-partner', requireAuth, thinkingPartnerRouter);
+
+// Memory: auth required for all routes
+app.use('/api/memory', requireAuth, memoryRouter);
 
 app.use('/api/billing', billingRouter);
 
