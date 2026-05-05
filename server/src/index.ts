@@ -10,6 +10,7 @@ import { RedisService } from './services/redisService';
 import { registerRoomHandler } from './socket/roomHandler';
 import aiRouter from './routes/ai';
 import thinkingPartnerRouter from './routes/thinkingPartner';
+import challengeRouter from './routes/challenge';
 import memoryRouter from './routes/memory';
 import authRouter from './routes/auth';
 import boardsRouter from './routes/boards';
@@ -76,6 +77,10 @@ app.use('/api/ai', express.json({ limit: '5mb' }), aiRouter);
 
 // Thinking partner: auth required, own rate limiter inside router
 app.use('/api/ai/thinking-partner', requireAuth, thinkingPartnerRouter);
+
+// Challenge: auth + plan check, own rate limiter inside router (Sonnet — expensive)
+app.post('/api/ai/challenge', requireAuth, checkAIAccess, (_req, _res, next) => next());
+app.use('/api/ai/challenge', challengeRouter);
 
 // Memory: auth required for all routes
 app.use('/api/memory', requireAuth, memoryRouter);

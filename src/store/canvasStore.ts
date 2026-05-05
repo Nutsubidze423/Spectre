@@ -47,6 +47,12 @@ interface CanvasState {
   setSearchOpen: (open: boolean) => void;
   thinkingPartnerOpen: boolean;
   setThinkingPartnerOpen: (open: boolean) => void;
+
+  // Challenge
+  challengeIds: string[];
+  addChallengeIds: (ids: string[]) => void;
+  acceptAllChallenges: () => void;
+  dismissAllChallenges: () => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -63,6 +69,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   shortcutsOpen: false,
   searchOpen: false,
   thinkingPartnerOpen: false,
+  challengeIds: [],
 
   addElement: (element) =>
     set((s) => ({ elements: [...s.elements, element] })),
@@ -127,4 +134,13 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
   setSearchOpen: (open) => set({ searchOpen: open }),
   setThinkingPartnerOpen: (open) => set({ thinkingPartnerOpen: open }),
+
+  addChallengeIds: (ids) => set((s) => ({ challengeIds: [...s.challengeIds, ...ids] })),
+  acceptAllChallenges: () => set({ challengeIds: [] }),
+  dismissAllChallenges: () =>
+    set((s) => ({
+      elements: s.elements.filter((el) => !s.challengeIds.includes(el.id)),
+      selectedIds: s.selectedIds.filter((id) => !s.challengeIds.includes(id)),
+      challengeIds: [],
+    })),
 }));

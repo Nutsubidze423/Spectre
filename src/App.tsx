@@ -16,6 +16,7 @@ import { ShortcutsPanel } from './components/ShortcutsPanel';
 import { ChatInput } from './components/ChatInput';
 import { SearchBar } from './components/SearchBar';
 import { ThinkingPartnerPanel } from './components/ThinkingPartnerPanel';
+import { ChallengeReviewBar } from './components/ChallengeReviewBar';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -230,6 +231,8 @@ function CanvasView() {
       <AnimatePresence>
         {thinkingPartnerOpen && <ThinkingPartnerPanel />}
       </AnimatePresence>
+
+      <ChallengeReviewBar />
     </div>
   );
 }

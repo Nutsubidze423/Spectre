@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCanvasStore } from '../store/canvasStore';
+import { ChallengeButton } from './ChallengeButton';
 import type { Tool } from '../types';
 
 const TOOLS: { id: Tool; icon: string; label: string }[] = [
@@ -188,6 +189,10 @@ export function Toolbar() {
             />
           )}
         </motion.button>
+
+        <div className="toolbar-divider" />
+
+        <ChallengeButton />
       </motion.div>
 
       {/* ── Zoom badge ── */}

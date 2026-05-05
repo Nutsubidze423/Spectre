@@ -1234,6 +1234,101 @@ body {
   width: 100%;
 }
 
+/* ─── Challenge ─────────────────────────────────────────────────────────────── */
+
+.challenge-btn {
+  color: #f7834a;
+}
+.challenge-btn:hover {
+  color: #ffaa77;
+}
+.challenge-btn.streaming {
+  color: #f7834a;
+  opacity: 0.85;
+}
+
+@keyframes challenge-spin {
+  to { transform: rotate(360deg); }
+}
+
+.challenge-spinner {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  border: 2px solid rgba(247, 131, 74, 0.25);
+  border-top-color: #f7834a;
+  border-radius: 50%;
+  animation: challenge-spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+.challenge-review-bar {
+  position: fixed;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(15, 12, 8, 0.92);
+  border: 1px solid rgba(247, 131, 74, 0.35);
+  border-radius: 24px;
+  padding: 7px 16px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.78rem;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 4px 24px rgba(247, 131, 74, 0.12);
+  white-space: nowrap;
+}
+
+.challenge-review-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.challenge-review-label {
+  color: #f7834a;
+  font-size: 0.77rem;
+  letter-spacing: 0.01em;
+}
+
+.challenge-review-actions {
+  display: flex;
+  gap: 6px;
+  margin-left: 4px;
+}
+
+.challenge-review-btn {
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid;
+  font-size: 0.72rem;
+  font-family: 'JetBrains Mono', monospace;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  background: transparent;
+}
+.challenge-review-btn:hover {
+  opacity: 0.8;
+  transform: scale(1.04);
+}
+.challenge-review-btn.accept {
+  color: #6af7c8;
+  border-color: rgba(106, 247, 200, 0.4);
+}
+.challenge-review-btn.accept:hover {
+  background: rgba(106, 247, 200, 0.08);
+}
+.challenge-review-btn.dismiss {
+  color: #6b6b8a;
+  border-color: rgba(107, 107, 138, 0.3);
+}
+.challenge-review-btn.dismiss:hover {
+  background: rgba(107, 107, 138, 0.08);
+  color: #e8e8f0;
+}
+
 /* ─── Pricing Page ──────────────────────────────────────────────────────────── */
 
 .pricing-page {
