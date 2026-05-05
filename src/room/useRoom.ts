@@ -49,7 +49,12 @@ export function useRoom(
 
     re.onRoomFull((data) => {
       setRoomFull(data);
-      useBillingStore.getState().setLimitHit({ type: 'room', plan: data.plan, limit: data.limit });
+      useBillingStore.getState().setGateHit({
+        feature: 'collaborators',
+        title: 'Room is full',
+        body: `Your plan allows up to ${data.limit} collaborators per room. Upgrade to add more.`,
+        requiredPlan: data.plan === 'FREE' ? 'SOLO' : data.plan === 'SOLO' ? 'PRO' : 'TEAM',
+      });
     });
 
     re.onUserJoined((user) => addUser(user));
