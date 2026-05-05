@@ -15,9 +15,11 @@ import memoryRouter from './routes/memory';
 import authRouter from './routes/auth';
 import boardsRouter from './routes/boards';
 import billingRouter, { webhookHandler } from './routes/billing';
+import adminRouter from './routes/admin';
 import { requireAuth } from './middleware/auth';
 import { checkAIAccess } from './middleware/checkAIAccess';
 import { checkBoardLimit } from './middleware/checkBoardLimit';
+import { requireFeature } from './middleware/featureAccess';
 import type { JwtPayload } from './types/index';
 
 dotenv.config();
@@ -31,8 +33,8 @@ if (!process.env.CLIENT_URL) {
 if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
   console.warn('[warn] JWT_SECRET / JWT_REFRESH_SECRET not set — auth will fail.');
 }
-if (!process.env.PADDLE_API_KEY) {
-  console.warn('[warn] PADDLE_API_KEY not set — billing will fail.');
+if (!process.env.STRIPE_SECRET_KEY) {
+  console.warn('[warn] STRIPE_SECRET_KEY not set — billing will fail.');
 }
 
 const app = express();
@@ -71,19 +73,22 @@ app.use('/api/auth', authRouter);
 app.post('/api/boards', requireAuth, checkBoardLimit, (_req, _res, next) => next());
 app.use('/api/boards', boardsRouter);
 
-// AI draw: require auth + plan-based usage check
+// AI draw: core mechanic — auth + PAST_DUE check only (no restrictions per spec)
 app.post('/api/ai/draw', requireAuth, checkAIAccess, (_req, _res, next) => next());
 app.use('/api/ai', express.json({ limit: '5mb' }), aiRouter);
 
-// Thinking partner: auth required, own rate limiter inside router
-app.use('/api/ai/thinking-partner', requireAuth, thinkingPartnerRouter);
+// Thinking partner: feature-gated (5/month FREE, unlimited SOLO+)
+app.use('/api/ai/thinking-partner', requireAuth, requireFeature('thinking_partner'), thinkingPartnerRouter);
 
-// Challenge: auth + plan check, own rate limiter inside router (Sonnet — expensive)
-app.post('/api/ai/challenge', requireAuth, checkAIAccess, (_req, _res, next) => next());
+// Challenge: feature-gated (blocked FREE, 10/day SOLO, unlimited PRO+)
+app.post('/api/ai/challenge', requireAuth, requireFeature('challenge_thinking'), (_req, _res, next) => next());
 app.use('/api/ai/challenge', challengeRouter);
 
-// Memory: auth required for all routes
+// Memory: auth required; session_summary gated at SOLO+
 app.use('/api/memory', requireAuth, memoryRouter);
+
+// Admin dashboard: Team only
+app.use('/api/admin', requireAuth, adminRouter);
 
 app.use('/api/billing', billingRouter);
 

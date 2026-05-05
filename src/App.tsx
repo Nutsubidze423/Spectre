@@ -251,8 +251,13 @@ export default function App() {
 
   useEffect(() => {
     void tryRestoreSession();
-    void initPaddle();
-  }, [tryRestoreSession]);
+    // Handle Stripe checkout return
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('checkout') === 'success') {
+      window.history.replaceState({}, '', window.location.pathname);
+      setTimeout(() => void fetchSubscription(), 1500);
+    }
+  }, [tryRestoreSession, fetchSubscription]);
 
   // Fetch billing info whenever a user session is established
   useEffect(() => {

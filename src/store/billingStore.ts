@@ -1,41 +1,45 @@
-import { create } from 'zustand';
+﻿import { create } from 'zustand';
 import { apiFetch } from '../api/client';
 
 export interface SubData {
-  plan: 'FREE' | 'PRO' | 'TEAM';
+  plan: 'FREE' | 'SOLO' | 'PRO' | 'TEAM';
   status: 'ACTIVE' | 'CANCELLED' | 'PAST_DUE';
   currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
   usage: {
-    aiRequests: number;
-    aiLimit: number;
+    thinkingPartnerThisMonth: number;
+    thinkingPartnerLimit: number;
+    challengeToday: number;
+    challengeLimit: number;
     boards: number;
     boardLimit: number;
     collaboratorLimit: number;
   };
 }
 
-export interface LimitHit {
-  type: 'ai' | 'boards' | 'room';
-  plan: string;
-  limit?: number;
+export interface GateHit {
+  feature: string;
+  title: string;
+  body: string;
+  requiredPlan: 'SOLO' | 'PRO' | 'TEAM';
 }
 
 interface BillingState {
   sub: SubData | null;
   isLoading: boolean;
-  limitHit: LimitHit | null;
+  gateHit: GateHit | null;
 
   fetchSubscription: () => Promise<void>;
-  setLimitHit: (data: LimitHit) => void;
-  clearLimitHit: () => void;
-  createCheckoutSession: (plan: 'PRO' | 'TEAM') => Promise<string | null>;
+  setGateHit: (data: GateHit) => void;
+  clearGateHit: () => void;
+  createCheckoutSession: (plan: 'SOLO' | 'PRO' | 'TEAM') => Promise<string | null>;
   createPortalSession: () => Promise<string | null>;
 }
 
 export const useBillingStore = create<BillingState>((set) => ({
   sub: null,
   isLoading: false,
-  limitHit: null,
+  gateHit: null,
 
   fetchSubscription: async () => {
     set({ isLoading: true });
@@ -45,14 +49,14 @@ export const useBillingStore = create<BillingState>((set) => ({
       const data = (await res.json()) as SubData;
       set({ sub: data });
     } catch {
-      // silently fail — billing non-critical
+      // silently fail
     } finally {
       set({ isLoading: false });
     }
   },
 
-  setLimitHit: (data) => set({ limitHit: data }),
-  clearLimitHit: () => set({ limitHit: null }),
+  setGateHit: (data) => set({ gateHit: data }),
+  clearGateHit: () => set({ gateHit: null }),
 
   createCheckoutSession: async (plan) => {
     try {
@@ -61,8 +65,8 @@ export const useBillingStore = create<BillingState>((set) => ({
         body: JSON.stringify({ plan }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { transactionId: string };
-      return data.transactionId;
+      const data = (await res.json()) as { checkoutUrl: string };
+      return data.checkoutUrl;
     } catch {
       return null;
     }
@@ -70,9 +74,7 @@ export const useBillingStore = create<BillingState>((set) => ({
 
   createPortalSession: async () => {
     try {
-      const res = await apiFetch('/api/billing/create-portal-session', {
-        method: 'POST',
-      });
+      const res = await apiFetch('/api/billing/create-portal-session', { method: 'POST' });
       if (!res.ok) return null;
       const data = (await res.json()) as { portalUrl: string };
       return data.portalUrl;

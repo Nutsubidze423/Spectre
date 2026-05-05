@@ -98,8 +98,10 @@ export function ThinkingPartnerPanel() {
       if (ctrl.signal.aborted) return;
 
       if (res.status === 403) {
-        const data = await res.json().catch(() => ({})) as { plan?: string; limit?: number };
-        useBillingStore.getState().setLimitHit({ type: 'ai', plan: data.plan ?? 'FREE', limit: data.limit });
+        const data = await res.json().catch(() => ({})) as { error?: string; feature?: string; title?: string; body?: string; requiredPlan?: 'SOLO' | 'PRO' | 'TEAM' };
+        if (data.title && data.body && data.requiredPlan) {
+          useBillingStore.getState().setGateHit({ feature: data.feature ?? 'thinking_partner', title: data.title, body: data.body, requiredPlan: data.requiredPlan });
+        }
         setStatus('idle');
         return;
       }

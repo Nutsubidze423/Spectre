@@ -1,62 +1,40 @@
-import { motion, AnimatePresence } from 'framer-motion';
+﻿import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
 import { useRoomStore } from '../store/roomStore';
-import { getPaddle } from '../lib/paddle';
 
-const LIMIT_MESSAGES: Record<string, { title: string; body: string }> = {
-  ai:    { title: 'AI draw limit reached', body: 'You\'ve used all your AI draws for today. Upgrade to get more.' },
-  boards: { title: 'Board limit reached', body: 'Free accounts can save up to 3 boards. Upgrade for unlimited.' },
-  room:  { title: 'Room is full', body: 'This room has reached the collaborator limit for the host\'s plan.' },
-};
+const PLAN_LABEL: Record<string, string> = { SOLO: 'Solo — $9/month', PRO: 'Pro — $19/month', TEAM: 'Team — $49/month' };
 
 export function UpgradeModal() {
-  const limitHit = useBillingStore((s) => s.limitHit);
-  const clearLimitHit = useBillingStore((s) => s.clearLimitHit);
+  const gateHit = useBillingStore((s) => s.gateHit);
+  const clearGateHit = useBillingStore((s) => s.clearGateHit);
+  const createCheckoutSession = useBillingStore((s) => s.createCheckoutSession);
   const roomFull = useRoomStore((s) => s.roomFull);
   const setRoomFull = useRoomStore((s) => s.setRoomFull);
-  const createCheckoutSession = useBillingStore((s) => s.createCheckoutSession);
   const setAppView = useAuthStore((s) => s.setAppView);
 
-  const active = limitHit ?? (roomFull ? { type: 'room' as const, plan: roomFull.plan, limit: roomFull.limit } : null);
+  const roomGate = roomFull
+    ? { feature: 'room', title: 'Room is full', body: `This room has reached the collaborator limit for the host's plan. Upgrade to add more users.`, requiredPlan: 'SOLO' as const }
+    : null;
+
+  const active = gateHit ?? roomGate;
 
   function dismiss() {
-    clearLimitHit();
+    clearGateHit();
     setRoomFull(null);
   }
 
   async function handleUpgrade() {
+    if (!active) return;
     dismiss();
-    const transactionId = await createCheckoutSession('PRO');
-    if (transactionId) {
-      getPaddle()?.Checkout.open({
-        transactionId,
-        eventCallback: (data) => {
-          if ((data as { name: string }).name === 'checkout.completed') {
-            setTimeout(() => void useBillingStore.getState().fetchSubscription(), 2000);
-          }
-        },
-      });
-    }
+    const url = await createCheckoutSession(active.requiredPlan as 'SOLO' | 'PRO' | 'TEAM');
+    if (url) window.location.href = url;
   }
-
-  function handleSeePlans() {
-    dismiss();
-    setAppView('pricing');
-  }
-
-  const msg = active ? (LIMIT_MESSAGES[active.type] ?? LIMIT_MESSAGES.ai) : null;
 
   return (
     <AnimatePresence>
-      {active && msg && (
-        <motion.div
-          className="upgrade-overlay"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          onClick={dismiss}
-        >
+      {active && (
+        <motion.div className="upgrade-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={dismiss}>
           <motion.div
             className="upgrade-modal"
             initial={{ opacity: 0, scale: 0.94, y: 12 }}
@@ -66,13 +44,13 @@ export function UpgradeModal() {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="upgrade-icon">⚡</div>
-            <h2 className="upgrade-title">{msg.title}</h2>
-            <p className="upgrade-body">{msg.body}</p>
+            <h2 className="upgrade-title">{active.title}</h2>
+            <p className="upgrade-body">{active.body}</p>
             <div className="upgrade-actions">
               <button className="upgrade-btn-primary" onClick={() => void handleUpgrade()}>
-                Upgrade to Pro
+                Upgrade to {PLAN_LABEL[active.requiredPlan] ?? active.requiredPlan}
               </button>
-              <button className="upgrade-btn-secondary" onClick={handleSeePlans}>
+              <button className="upgrade-btn-secondary" onClick={() => { dismiss(); setAppView('pricing'); }}>
                 See all plans
               </button>
             </div>

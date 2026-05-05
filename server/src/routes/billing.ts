@@ -1,266 +1,145 @@
+﻿import Stripe from 'stripe';
 import { Router } from 'express';
-import { Paddle, Environment } from '@paddle/paddle-node-sdk';
 import { prisma } from '../db/client';
 import { requireAuth } from '../middleware/auth';
+import { LIMITS, getUserPlan } from '../lib/plans';
 import type { Plan, SubStatus } from '@prisma/client';
 
 const router = Router();
 
-// ─── Paddle client (lazy singleton) ───────────────────────────────────────────
+type StripeClient = InstanceType<typeof Stripe>;
+type StripeEvent  = ReturnType<StripeClient['webhooks']['constructEvent']>;
 
-let _paddle: Paddle | null = null;
-
-function getPaddle(): Paddle {
-  if (_paddle) return _paddle;
-  const key = process.env.PADDLE_API_KEY;
-  if (!key) throw new Error('PADDLE_API_KEY not configured');
-  _paddle = new Paddle(key, {
-    environment: process.env.NODE_ENV === 'production'
-      ? Environment.production
-      : Environment.sandbox,
-  });
-  return _paddle;
+function getStripe(): StripeClient {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error('STRIPE_SECRET_KEY not configured');
+  return new Stripe(key);
 }
 
-// ─── Plan limits (single source of truth) ─────────────────────────────────────
-
-export const LIMITS: Record<Plan, { collaborators: number; aiRequestsPerDay: number; savedBoards: number }> = {
-  FREE:  { collaborators: 5,  aiRequestsPerDay: 3,   savedBoards: 3  },
-  PRO:   { collaborators: 20, aiRequestsPerDay: 20,   savedBoards: -1 },
-  TEAM:  { collaborators: 50, aiRequestsPerDay: 60,   savedBoards: -1 },
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 function resolvePlan(priceId: string | undefined): Plan {
-  if (priceId === process.env.PADDLE_PRO_PRICE_ID) return 'PRO';
-  if (priceId === process.env.PADDLE_TEAM_PRICE_ID) return 'TEAM';
+  if (priceId === process.env.STRIPE_SOLO_PRICE_ID) return 'SOLO';
+  if (priceId === process.env.STRIPE_PRO_PRICE_ID) return 'PRO';
+  if (priceId === process.env.STRIPE_TEAM_PRICE_ID) return 'TEAM';
   return 'FREE';
 }
 
-function resolveStatus(paddleStatus: string): SubStatus {
-  if (paddleStatus === 'active' || paddleStatus === 'trialing') return 'ACTIVE';
-  if (paddleStatus === 'past_due' || paddleStatus === 'paused') return 'PAST_DUE';
+function resolveStatus(s: string): SubStatus {
+  if (s === 'active' || s === 'trialing') return 'ACTIVE';
+  if (s === 'past_due') return 'PAST_DUE';
   return 'CANCELLED';
 }
 
-// ─── POST /api/billing/webhook ────────────────────────────────────────────────
-// Mounted with express.raw() in index.ts — must come before express.json()
+async function getSubPriceId(stripe: StripeClient, subId: string): Promise<string | undefined> {
+  const sub = await stripe.subscriptions.retrieve(subId);
+  return sub.items.data[0]?.price?.id;
+}
 
-export async function webhookHandler(
-  req: import('express').Request,
-  res: import('express').Response,
-): Promise<void> {
-  const secret = process.env.PADDLE_WEBHOOK_SECRET;
-  if (!secret) {
-    console.error('[billing/webhook] PADDLE_WEBHOOK_SECRET not set');
-    res.sendStatus(200);
-    return;
-  }
-
-  const signature = req.headers['paddle-signature'] as string | undefined;
-  if (!signature) {
-    res.status(400).send('Missing paddle-signature header');
-    return;
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let event: any;
+export async function webhookHandler(req: import('express').Request, res: import('express').Response): Promise<void> {
+  const secret = process.env.STRIPE_WEBHOOK_SECRET;
+  if (!secret) { console.error('[billing/webhook] STRIPE_WEBHOOK_SECRET not set'); res.sendStatus(200); return; }
+  const sig = req.headers['stripe-signature'] as string | undefined;
+  if (!sig) { res.status(400).send('Missing stripe-signature'); return; }
+  let event: StripeEvent;
   try {
-    event = await getPaddle().webhooks.unmarshal(
-      (req.body as Buffer).toString(),
-      secret,
-      signature,
-    );
+    event = getStripe().webhooks.constructEvent((req.body as Buffer).toString(), sig, secret);
   } catch (err) {
-    console.error('[billing/webhook] signature verification failed:', err);
+    console.error('[billing/webhook] signature failed:', err);
     res.status(400).send('Webhook signature verification failed');
     return;
   }
-
-  if (!event) {
-    res.status(400).send('Webhook signature verification failed');
-    return;
-  }
-
-  try {
-    await handlePaddleEvent(event);
-  } catch (err) {
-    // Always 200 — log but don't let Paddle retry-loop on our bugs
-    console.error('[billing/webhook] handler error:', err);
-  }
-
+  try { await handleEvent(event); } catch (err) { console.error('[billing/webhook] handler error:', err); }
   res.sendStatus(200);
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function handlePaddleEvent(event: any): Promise<void> {
-  const eventType = event.eventType as string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const data = event.data as Record<string, any>;
-
-  switch (eventType) {
-    case 'subscription.activated': {
-      const userId = (data.customData as Record<string, string> | null)?.userId;
-      if (!userId) {
-        console.warn('[webhook] subscription.activated: missing userId in customData');
-        return;
-      }
-      const priceId = data.items?.[0]?.price?.id as string | undefined;
+async function handleEvent(event: StripeEvent): Promise<void> {
+  const obj = event.data.object as unknown as Record<string, unknown>;
+  switch (event.type) {
+    case 'checkout.session.completed': {
+      const userId = (obj.metadata as Record<string, string> | null)?.userId;
+      if (!userId) return;
+      const subId = obj.subscription as string | null;
+      const priceId = subId ? await getSubPriceId(getStripe(), subId) : undefined;
       const plan = resolvePlan(priceId);
-      const currentPeriodEnd = data.currentBillingPeriod?.endsAt
-        ? new Date(data.currentBillingPeriod.endsAt as string)
-        : null;
-
       await prisma.subscription.upsert({
         where: { userId },
-        create: {
-          userId,
-          paddleCustomerId: data.customerId as string,
-          paddleSubscriptionId: data.id as string,
-          plan,
-          status: 'ACTIVE',
-          currentPeriodEnd,
-        },
-        update: {
-          paddleCustomerId: data.customerId as string,
-          paddleSubscriptionId: data.id as string,
-          plan,
-          status: 'ACTIVE',
-          currentPeriodEnd,
-        },
+        create: { userId, stripeCustomerId: obj.customer as string, stripeSubscriptionId: subId, plan, status: 'ACTIVE' },
+        update: { stripeCustomerId: obj.customer as string, stripeSubscriptionId: subId, plan, status: 'ACTIVE' },
       });
       break;
     }
-
-    case 'subscription.updated': {
-      const priceId = data.items?.[0]?.price?.id as string | undefined;
-      const plan = resolvePlan(priceId);
-      const status = resolveStatus(data.status as string);
-      const currentPeriodEnd = data.currentBillingPeriod?.endsAt
-        ? new Date(data.currentBillingPeriod.endsAt as string)
-        : null;
-
+    case 'customer.subscription.updated': {
+      const items = (obj.items as { data: { price: { id: string } }[] } | null)?.data;
+      const plan   = resolvePlan(items?.[0]?.price?.id);
+      const status = resolveStatus(obj.status as string);
       await prisma.subscription.updateMany({
-        where: { paddleCustomerId: data.customerId as string },
-        data: { plan, status, currentPeriodEnd, paddleSubscriptionId: data.id as string },
+        where: { stripeCustomerId: obj.customer as string },
+        data: { plan, status, currentPeriodEnd: new Date((obj.current_period_end as number) * 1000), cancelAtPeriodEnd: obj.cancel_at_period_end as boolean, stripeSubscriptionId: obj.id as string },
       });
       break;
     }
-
-    case 'subscription.canceled': {
+    case 'customer.subscription.deleted': {
       await prisma.subscription.updateMany({
-        where: { paddleCustomerId: data.customerId as string },
-        data: { plan: 'FREE', status: 'CANCELLED', paddleSubscriptionId: null, currentPeriodEnd: null },
+        where: { stripeCustomerId: obj.customer as string },
+        data: { plan: 'FREE', status: 'CANCELLED', stripeSubscriptionId: null, currentPeriodEnd: null, cancelAtPeriodEnd: false },
       });
       break;
     }
-
-    case 'transaction.payment_failed': {
+    case 'invoice.payment_failed': {
       await prisma.subscription.updateMany({
-        where: { paddleCustomerId: data.customerId as string },
+        where: { stripeCustomerId: obj.customer as string },
         data: { status: 'PAST_DUE' },
       });
       break;
     }
-
-    default:
-      break;
   }
 }
-
-// ─── POST /api/billing/create-checkout-session ────────────────────────────────
 
 router.post('/create-checkout-session', requireAuth, async (req, res) => {
   try {
     const { plan } = req.body as { plan?: string };
-    if (plan !== 'PRO' && plan !== 'TEAM') {
-      res.status(400).json({ error: 'plan must be PRO or TEAM' });
-      return;
-    }
-
-    const priceId = plan === 'PRO'
-      ? process.env.PADDLE_PRO_PRICE_ID
-      : process.env.PADDLE_TEAM_PRICE_ID;
-
-    if (!priceId) {
-      res.status(500).json({ error: `PADDLE_${plan}_PRICE_ID not configured` });
-      return;
-    }
-
-    const transaction = await getPaddle().transactions.create({
-      items: [{ priceId, quantity: 1 }],
-      customData: { userId: req.userId },
+    if (plan !== 'SOLO' && plan !== 'PRO' && plan !== 'TEAM') { res.status(400).json({ error: 'plan must be SOLO, PRO, or TEAM' }); return; }
+    const priceId = plan === 'SOLO' ? process.env.STRIPE_SOLO_PRICE_ID : plan === 'PRO' ? process.env.STRIPE_PRO_PRICE_ID : process.env.STRIPE_TEAM_PRICE_ID;
+    if (!priceId) { res.status(500).json({ error: 'STRIPE_' + plan + '_PRICE_ID not configured' }); return; }
+    const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:5173';
+    const session = await getStripe().checkout.sessions.create({
+      mode: 'subscription',
+      payment_method_types: ['card'],
+      line_items: [{ price: priceId, quantity: 1 }],
+      metadata: { userId: req.userId! },
+      success_url: clientUrl + '?checkout=success',
+      cancel_url: clientUrl + '?checkout=cancelled',
     });
-
-    res.json({ transactionId: transaction?.id });
-  } catch (err) {
-    console.error('[billing/create-checkout-session]', err);
-    res.status(500).json({ error: 'Failed to create checkout session' });
-  }
+    res.json({ checkoutUrl: session.url });
+  } catch (err) { console.error('[billing/create-checkout-session]', err); res.status(500).json({ error: 'Failed to create checkout session' }); }
 });
-
-// ─── POST /api/billing/create-portal-session ──────────────────────────────────
 
 router.post('/create-portal-session', requireAuth, async (req, res) => {
   try {
-    const sub = await prisma.subscription.findUnique({
-      where: { userId: req.userId },
-      select: { paddleCustomerId: true },
-    });
-
-    if (!sub?.paddleCustomerId) {
-      res.status(404).json({ error: 'No billing account found' });
-      return;
-    }
-
-    const portal = await getPaddle().customerPortalSessions.create(
-      sub.paddleCustomerId,
-      [],
-    );
-
-    res.json({ portalUrl: portal?.urls?.general?.overview });
-  } catch (err) {
-    console.error('[billing/create-portal-session]', err);
-    res.status(500).json({ error: 'Failed to create portal session' });
-  }
+    const sub = await prisma.subscription.findUnique({ where: { userId: req.userId }, select: { stripeCustomerId: true } });
+    if (!sub?.stripeCustomerId) { res.status(404).json({ error: 'No billing account found' }); return; }
+    const clientUrl = process.env.CLIENT_URL ?? 'http://localhost:5173';
+    const portal = await getStripe().billingPortal.sessions.create({ customer: sub.stripeCustomerId, return_url: clientUrl });
+    res.json({ portalUrl: portal.url });
+  } catch (err) { console.error('[billing/create-portal-session]', err); res.status(500).json({ error: 'Failed to create portal session' }); }
 });
-
-// ─── GET /api/billing/subscription ───────────────────────────────────────────
 
 router.get('/subscription', requireAuth, async (req, res) => {
   try {
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-
     const [sub, usage, boardCount] = await Promise.all([
       prisma.subscription.findUnique({ where: { userId: req.userId } }),
-      prisma.usageTracking.findUnique({
-        where: { userId_date: { userId: req.userId, date: today } },
-      }),
+      prisma.usageTracking.findUnique({ where: { userId: req.userId } }),
       prisma.board.count({ where: { userId: req.userId } }),
     ]);
-
     const plan: Plan = sub?.plan ?? 'FREE';
     const status: SubStatus = sub?.status ?? 'ACTIVE';
     const limits = LIMITS[plan];
-
-    res.json({
-      plan,
-      status,
-      currentPeriodEnd: sub?.currentPeriodEnd ?? null,
-      usage: {
-        aiRequests: usage?.aiRequestsCount ?? 0,
-        aiLimit: limits.aiRequestsPerDay,
-        boards: boardCount,
-        boardLimit: limits.savedBoards,
-        collaboratorLimit: limits.collaborators,
-      },
-    });
-  } catch (err) {
-    console.error('[billing/subscription]', err);
-    res.status(500).json({ error: 'Failed to load subscription' });
-  }
+    res.json({ plan, status, currentPeriodEnd: sub?.currentPeriodEnd ?? null, cancelAtPeriodEnd: sub?.cancelAtPeriodEnd ?? false,
+      usage: { thinkingPartnerThisMonth: usage?.thinkingPartnerUsesThisMonth ?? 0, thinkingPartnerLimit: limits.thinkingPartnerPerMonth,
+        challengeToday: usage?.challengeThinkingUsesToday ?? 0, challengeLimit: limits.challengeThinkingPerDay,
+        boards: boardCount, boardLimit: limits.savedBoards, collaboratorLimit: limits.collaborators } });
+  } catch (err) { console.error('[billing/subscription]', err); res.status(500).json({ error: 'Failed to load subscription' }); }
 });
 
+void getUserPlan;
+export { LIMITS };
 export default router;

@@ -60,8 +60,10 @@ export const useBoardStore = create<BoardState>((set, get) => ({
         body: JSON.stringify({ name }),
       });
       if (res.status === 403) {
-        const data = await res.json().catch(() => ({})) as { plan?: string; limit?: number };
-        useBillingStore.getState().setLimitHit({ type: 'boards', plan: data.plan ?? 'FREE', limit: data.limit });
+        const data = await res.json().catch(() => ({})) as { error?: string; feature?: string; title?: string; body?: string; requiredPlan?: 'SOLO' | 'PRO' | 'TEAM' };
+        if (data.title && data.body && data.requiredPlan) {
+          useBillingStore.getState().setGateHit({ feature: data.feature ?? 'saved_boards', title: data.title, body: data.body, requiredPlan: data.requiredPlan });
+        }
         return null;
       }
       if (!res.ok) return null;

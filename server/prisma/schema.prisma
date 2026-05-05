@@ -7,10 +7,9 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ─── Enums ────────────────────────────────────────────────────────────────────
-
 enum Plan {
   FREE
+  SOLO
   PRO
   TEAM
 }
@@ -21,18 +20,17 @@ enum SubStatus {
   PAST_DUE
 }
 
-// ─── Models ───────────────────────────────────────────────────────────────────
-
 model User {
-  id              String          @id @default(uuid())
-  email           String          @unique
-  username        String          @unique
+  id              String           @id @default(uuid())
+  email           String           @unique
+  username        String           @unique
   passwordHash    String
-  createdAt       DateTime        @default(now())
+  createdAt       DateTime         @default(now())
   boards          Board[]
   subscription    Subscription?
-  usageTracking   UsageTracking[]
+  usageTracking   UsageTracking?
   sessionMemories SessionMemory[]
+  teamMemberships TeamMembership[]
 }
 
 model Board {
@@ -71,23 +69,43 @@ model BoardSnapshot {
 }
 
 model Subscription {
-  id                    String    @id @default(uuid())
-  userId                String    @unique
-  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  paddleCustomerId      String?   @unique
-  paddleSubscriptionId  String?   @unique
-  plan                  Plan      @default(FREE)
-  status                SubStatus @default(ACTIVE)
-  currentPeriodEnd      DateTime?
-  createdAt             DateTime  @default(now())
+  id                   String    @id @default(uuid())
+  userId               String    @unique
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeCustomerId     String?   @unique
+  stripeSubscriptionId String?   @unique
+  plan                 Plan      @default(FREE)
+  status               SubStatus @default(ACTIVE)
+  currentPeriodEnd     DateTime?
+  cancelAtPeriodEnd    Boolean   @default(false)
+  seatCount            Int       @default(1)
+  teamId               String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 }
 
 model UsageTracking {
-  id              String   @id @default(uuid())
-  userId          String
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  date            DateTime @db.Date
-  aiRequestsCount Int      @default(0)
+  id                           String   @id @default(uuid())
+  userId                       String   @unique
+  user                         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardsCreated                Int      @default(0)
+  thinkingPartnerUsesThisMonth Int      @default(0)
+  thinkingPartnerMonthReset    DateTime @default(now())
+  challengeThinkingUsesToday   Int      @default(0)
+  challengeDayReset            DateTime @default(now())
+  sessionsCompleted            Int      @default(0)
+  memorySessionsStored         Int      @default(0)
+  updatedAt                    DateTime @updatedAt
+}
 
-  @@unique([userId, date])
+model TeamMembership {
+  id        String   @id @default(uuid())
+  teamId    String
+  userId    String
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId])
 }

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
 
-const PLAN_LABELS: Record<string, string> = { FREE: 'Free', PRO: 'Pro', TEAM: 'Team' };
+const PLAN_LABELS: Record<string, string> = { FREE: 'Free', SOLO: 'Solo', PRO: 'Pro', TEAM: 'Team' };
 const STATUS_LABELS: Record<string, string> = { ACTIVE: 'Active', CANCELLED: 'Cancelled', PAST_DUE: 'Past Due' };
 
 export function AccountPage() {
@@ -72,8 +72,12 @@ export function AccountPage() {
           {usage && (
             <div className="account-usage">
               <div className="account-usage-row">
-                <span>AI draws today</span>
-                <span>{usage.aiRequests} / {usage.aiLimit === -1 ? '∞' : usage.aiLimit}</span>
+                <span>Thinking Partner (month)</span>
+                <span>{usage.thinkingPartnerThisMonth} / {usage.thinkingPartnerLimit === -1 ? '∞' : usage.thinkingPartnerLimit}</span>
+              </div>
+              <div className="account-usage-row">
+                <span>Challenges today</span>
+                <span>{usage.challengeToday} / {usage.challengeLimit === -1 ? '∞' : usage.challengeLimit === 0 ? '—' : usage.challengeLimit}</span>
               </div>
               <div className="account-usage-row">
                 <span>Saved boards</span>
