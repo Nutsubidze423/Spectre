@@ -53,6 +53,14 @@ interface CanvasState {
   addChallengeIds: (ids: string[]) => void;
   acceptAllChallenges: () => void;
   dismissAllChallenges: () => void;
+
+  // Memory panel
+  memoryPanelOpen: boolean;
+  setMemoryPanelOpen: (open: boolean) => void;
+
+  // Replay
+  replayMode: boolean;
+  setReplayMode: (mode: boolean) => void;
 }
 
 export const useCanvasStore = create<CanvasState>((set) => ({
@@ -70,6 +78,8 @@ export const useCanvasStore = create<CanvasState>((set) => ({
   searchOpen: false,
   thinkingPartnerOpen: false,
   challengeIds: [],
+  memoryPanelOpen: false,
+  replayMode: false,
 
   addElement: (element) =>
     set((s) => ({ elements: [...s.elements, element] })),
@@ -143,4 +153,7 @@ export const useCanvasStore = create<CanvasState>((set) => ({
       selectedIds: s.selectedIds.filter((id) => !s.challengeIds.includes(id)),
       challengeIds: [],
     })),
+
+  setMemoryPanelOpen: (open) => set({ memoryPanelOpen: open }),
+  setReplayMode: (mode) => set({ replayMode: mode }),
 }));

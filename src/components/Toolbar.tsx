@@ -37,6 +37,10 @@ export function Toolbar() {
   const setShortcutsOpen = useCanvasStore((s) => s.setShortcutsOpen);
   const thinkingPartnerOpen = useCanvasStore((s) => s.thinkingPartnerOpen);
   const setThinkingPartnerOpen = useCanvasStore((s) => s.setThinkingPartnerOpen);
+  const memoryPanelOpen = useCanvasStore((s) => s.memoryPanelOpen);
+  const setMemoryPanelOpen = useCanvasStore((s) => s.setMemoryPanelOpen);
+  const replayMode = useCanvasStore((s) => s.replayMode);
+  const setReplayMode = useCanvasStore((s) => s.setReplayMode);
 
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [customHex, setCustomHex] = useState('');
@@ -193,6 +197,29 @@ export function Toolbar() {
         <div className="toolbar-divider" />
 
         <ChallengeButton />
+
+        <div className="toolbar-divider" />
+
+        <motion.button
+          className={`tool-btn${memoryPanelOpen ? ' active' : ''}`}
+          onClick={() => setMemoryPanelOpen(!memoryPanelOpen)}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
+          title="Session Memory"
+        >
+          🧠
+        </motion.button>
+
+        <motion.button
+          className={`tool-btn${replayMode ? ' active' : ''}`}
+          onClick={() => { if (!replayMode) setReplayMode(true); }}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.92 }}
+          title="Replay canvas drawing"
+          disabled={replayMode}
+        >
+          ▶
+        </motion.button>
       </motion.div>
 
       {/* ── Zoom badge ── */}

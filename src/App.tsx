@@ -17,6 +17,8 @@ import { ChatInput } from './components/ChatInput';
 import { SearchBar } from './components/SearchBar';
 import { ThinkingPartnerPanel } from './components/ThinkingPartnerPanel';
 import { ChallengeReviewBar } from './components/ChallengeReviewBar';
+import { MemoryPanel } from './components/MemoryPanel';
+import { ReplayControls } from './components/ReplayControls';
 import { useCanvasStore } from './store/canvasStore';
 import { useAuthStore } from './store/authStore';
 import { useBoardStore } from './store/boardStore';
@@ -233,6 +235,8 @@ function CanvasView() {
       </AnimatePresence>
 
       <ChallengeReviewBar />
+      <MemoryPanel />
+      <ReplayControls />
     </div>
   );
 }
