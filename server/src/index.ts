@@ -33,8 +33,8 @@ if (!process.env.CLIENT_URL) {
 if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
   console.warn('[warn] JWT_SECRET / JWT_REFRESH_SECRET not set — auth will fail.');
 }
-if (!process.env.STRIPE_SECRET_KEY) {
-  console.warn('[warn] STRIPE_SECRET_KEY not set — billing will fail.');
+if (!process.env.PADDLE_API_KEY) {
+  console.warn('[warn] PADDLE_API_KEY not set — billing will fail.');
 }
 
 const app = express();

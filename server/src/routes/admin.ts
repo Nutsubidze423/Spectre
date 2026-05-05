@@ -5,17 +5,17 @@ import { requireFeature } from '../middleware/featureAccess';
 
 const router = Router();
 
-// GET /api/admin/overview — Team admin dashboard data
 router.get('/overview', requireAuth, requireFeature('admin_dashboard'), async (req, res) => {
   try {
-    const sub = await prisma.subscription.findUnique({
-      where: { userId: req.userId },
-      select: { teamId: true, seatCount: true, plan: true },
-    });
-    if (!sub?.teamId) { res.status(404).json({ error: 'No team found' }); return; }
+    const userId = req.userId!;
+
+    // Find all memberships in the same team as the requesting user
+    const myMembership = await prisma.teamMembership.findFirst({ where: { userId } });
+    const teamId = myMembership?.teamId;
+    if (!teamId) { res.status(404).json({ error: 'No team found' }); return; }
 
     const memberships = await prisma.teamMembership.findMany({
-      where: { teamId: sub.teamId },
+      where: { teamId },
       include: {
         user: {
           select: {
@@ -40,13 +40,7 @@ router.get('/overview', requireAuth, requireFeature('admin_dashboard'), async (r
       sessionsCompleted: m.user.usageTracking?.sessionsCompleted ?? 0,
     }));
 
-    res.json({
-      teamId: sub.teamId,
-      plan: sub.plan,
-      seatCount: sub.seatCount,
-      memberCount: members.length,
-      members,
-    });
+    res.json({ teamId, memberCount: members.length, members });
   } catch (err) {
     console.error('[admin/overview]', err);
     res.status(500).json({ error: 'Failed to load admin data' });

@@ -2,6 +2,7 @@
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
 import { useRoomStore } from '../store/roomStore';
+import { getPaddle } from '../lib/paddle';
 
 const PLAN_LABEL: Record<string, string> = { SOLO: 'Solo — $9/month', PRO: 'Pro — $19/month', TEAM: 'Team — $49/month' };
 
@@ -27,8 +28,17 @@ export function UpgradeModal() {
   async function handleUpgrade() {
     if (!active) return;
     dismiss();
-    const url = await createCheckoutSession(active.requiredPlan as 'SOLO' | 'PRO' | 'TEAM');
-    if (url) window.location.href = url;
+    const transactionId = await createCheckoutSession(active.requiredPlan as 'SOLO' | 'PRO' | 'TEAM');
+    if (transactionId) {
+      getPaddle()?.Checkout.open({
+        transactionId,
+        eventCallback: (data) => {
+          if ((data as { name: string }).name === 'checkout.completed') {
+            setTimeout(() => void useBillingStore.getState().fetchSubscription(), 2000);
+          }
+        },
+      });
+    }
   }
 
   return (

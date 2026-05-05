@@ -1,6 +1,8 @@
-﻿import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { useBillingStore } from '../store/billingStore';
+import { getPaddle } from '../lib/paddle';
 
 const PLANS = [
   {
@@ -64,17 +66,30 @@ const PLANS = [
   },
 ];
 
+function openPaddleCheckout(transactionId: string) {
+  getPaddle()?.Checkout.open({
+    transactionId,
+    eventCallback: (data) => {
+      if ((data as { name: string }).name === 'checkout.completed') {
+        setTimeout(() => void useBillingStore.getState().fetchSubscription(), 2000);
+      }
+    },
+  });
+}
+
 export function PricingPage() {
   const setAppView = useAuthStore((s) => s.setAppView);
   const sub = useBillingStore((s) => s.sub);
   const createCheckoutSession = useBillingStore((s) => s.createCheckoutSession);
-  const isLoading = useBillingStore((s) => s.isLoading);
+  const [loading, setLoading] = useState<string | null>(null);
 
   const currentPlan = sub?.plan ?? 'FREE';
 
   async function handleUpgrade(planId: 'SOLO' | 'PRO' | 'TEAM') {
-    const url = await createCheckoutSession(planId);
-    if (url) window.location.href = url;
+    setLoading(planId);
+    const transactionId = await createCheckoutSession(planId);
+    setLoading(null);
+    if (transactionId) openPaddleCheckout(transactionId);
   }
 
   return (
@@ -120,10 +135,10 @@ export function PricingPage() {
               ) : (
                 <button
                   className={`pricing-btn pricing-btn--${plan.id.toLowerCase()}`}
-                  disabled={isCurrent || isLoading}
+                  disabled={isCurrent || loading === plan.id}
                   onClick={() => void handleUpgrade(plan.id)}
                 >
-                  {isLoading ? 'Loading…' : isCurrent ? 'Current plan' : `Upgrade to ${plan.label}`}
+                  {loading === plan.id ? 'Loading…' : isCurrent ? 'Current plan' : `Upgrade to ${plan.label}`}
                 </button>
               )}
             </motion.div>
@@ -132,12 +147,13 @@ export function PricingPage() {
       </div>
 
       <div className="pricing-payment-methods">
-        <span className="pricing-payment-label">Secure payments via Stripe</span>
+        <span className="pricing-payment-label">Secure payments via</span>
         <div className="pricing-payment-icons">
           <span className="payment-badge">Visa</span>
           <span className="payment-badge">Mastercard</span>
           <span className="payment-badge">Apple Pay</span>
           <span className="payment-badge">Google Pay</span>
+          <span className="payment-badge">PayPal</span>
         </div>
       </div>
     </div>

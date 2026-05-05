@@ -25,7 +25,6 @@ import { useBoardStore } from './store/boardStore';
 import { useBillingStore } from './store/billingStore';
 import { useRoomStore } from './store/roomStore';
 import { getRoomEngine } from './room/RoomEngine';
-import { initPaddle } from './lib/paddle';
 import type { Board } from './types';
 import './index.css';
 
@@ -251,13 +250,8 @@ export default function App() {
 
   useEffect(() => {
     void tryRestoreSession();
-    // Handle Stripe checkout return
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('checkout') === 'success') {
-      window.history.replaceState({}, '', window.location.pathname);
-      setTimeout(() => void fetchSubscription(), 1500);
-    }
-  }, [tryRestoreSession, fetchSubscription]);
+    void import('./lib/paddle').then(({ initPaddle }) => void initPaddle());
+  }, [tryRestoreSession]);
 
   // Fetch billing info whenever a user session is established
   useEffect(() => {

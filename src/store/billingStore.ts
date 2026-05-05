@@ -1,11 +1,10 @@
-﻿import { create } from 'zustand';
+import { create } from 'zustand';
 import { apiFetch } from '../api/client';
 
 export interface SubData {
   plan: 'FREE' | 'SOLO' | 'PRO' | 'TEAM';
   status: 'ACTIVE' | 'CANCELLED' | 'PAST_DUE';
   currentPeriodEnd: string | null;
-  cancelAtPeriodEnd: boolean;
   usage: {
     thinkingPartnerThisMonth: number;
     thinkingPartnerLimit: number;
@@ -58,6 +57,7 @@ export const useBillingStore = create<BillingState>((set) => ({
   setGateHit: (data) => set({ gateHit: data }),
   clearGateHit: () => set({ gateHit: null }),
 
+  // Returns Paddle transactionId for inline checkout
   createCheckoutSession: async (plan) => {
     try {
       const res = await apiFetch('/api/billing/create-checkout-session', {
@@ -65,8 +65,8 @@ export const useBillingStore = create<BillingState>((set) => ({
         body: JSON.stringify({ plan }),
       });
       if (!res.ok) return null;
-      const data = (await res.json()) as { checkoutUrl: string };
-      return data.checkoutUrl;
+      const data = (await res.json()) as { transactionId: string };
+      return data.transactionId;
     } catch {
       return null;
     }

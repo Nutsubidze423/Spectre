@@ -1,167 +1,331 @@
-# Spectre — Deployment Guide
+# Spectre — Step-by-Step Deployment Guide
 
-## 1. Project Overview
+## What you need before starting
 
-Spectre is a real-time collaborative whiteboard with AI-assisted drawing, Thinking Partner mode, Challenge Thinking, Canvas Memory, and board replay. It runs as a monorepo: a React SPA (Vite) and an Express/Socket.io server, deployed together on Railway.
+- A [Railway](https://railway.app) account (free tier works to start)
+- A [Paddle](https://paddle.com) account (sandbox for testing, production when ready)
+- An [Anthropic](https://console.anthropic.com) API key
+- Git installed locally
+- Node.js 18+ installed locally
 
-```
-Frontend  →  React 18 + Vite + TypeScript + Canvas API + Rough.js
-Backend   →  Node.js + Express + Socket.io + Prisma + PostgreSQL + Redis
-Payments  →  Stripe (Checkout + Customer Portal + Webhooks)
-AI        →  Anthropic Claude (claude-haiku-4-5 for most calls, claude-sonnet-4-6 for Challenge Thinking)
+---
+
+## Step 1 — Clone and install
+
+```bash
+git clone https://github.com/Nutsubidze423/Spectre.git
+cd Spectre
+
+# Install frontend deps
+npm install
+
+# Install server deps
+cd server && npm install && cd ..
 ```
 
 ---
 
-## 2. Environment Variables
+## Step 2 — Set up PostgreSQL locally (for dev)
 
-### Server (`server/.env`)
+The easiest way is Docker:
+
+```bash
+docker run -d \
+  --name spectre-pg \
+  -e POSTGRES_USER=spectre \
+  -e POSTGRES_PASSWORD=spectre \
+  -e POSTGRES_DB=spectre \
+  -p 5432:5432 \
+  postgres:16
+```
+
+Your local `DATABASE_URL`:
+```
+postgresql://spectre:spectre@localhost:5432/spectre
+```
+
+---
+
+## Step 3 — Set up Redis locally (for multiplayer rooms)
+
+```bash
+docker run -d --name spectre-redis -p 6379:6379 redis:latest
+```
+
+Your local `REDIS_URL`:
+```
+redis://localhost:6379
+```
+
+---
+
+## Step 4 — Set up Paddle
+
+### 4a. Create products and prices
+
+1. Log in to [sandbox.paddle.com](https://sandbox.paddle.com) (use sandbox first)
+2. Go to **Catalog → Products** → **New product**
+3. Create 3 products: `Spectre Solo`, `Spectre Pro`, `Spectre Team`
+4. For each product, go to **Prices** and create a recurring monthly price:
+   - Solo: $9/month
+   - Pro: $19/month
+   - Team: $49/month
+5. Copy each **Price ID** (starts with `pri_`) — you'll need them as env vars
+
+### 4b. Get your API key and client token
+
+1. Go to **Developer Tools → Authentication**
+2. Copy your **API key** — this is `PADDLE_API_KEY` (server-side, keep secret)
+3. Copy your **Client-side token** — this is `VITE_PADDLE_CLIENT_TOKEN` (safe for frontend)
+
+### 4c. Set up webhook
+
+1. Go to **Developer Tools → Notifications → New destination**
+2. URL: `https://your-backend-domain.com/api/billing/webhook`
+   - For local testing use [ngrok](https://ngrok.com): `ngrok http 3001` then use the HTTPS URL
+3. Select these events:
+   - `subscription.activated`
+   - `subscription.updated`
+   - `subscription.canceled`
+   - `transaction.payment_failed`
+4. Copy the **secret key** — this is `PADDLE_WEBHOOK_SECRET`
+
+---
+
+## Step 5 — Create environment files
+
+### `server/.env`
 
 ```env
-# Core
-NODE_ENV=production
+NODE_ENV=development
 PORT=3001
-CLIENT_URL=https://your-frontend-domain.com
+CLIENT_URL=http://localhost:5173
 
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/spectre
+DATABASE_URL=postgresql://spectre:spectre@localhost:5432/spectre
+REDIS_URL=redis://localhost:6379
 
-# Redis
-REDIS_URL=redis://host:6379
+JWT_SECRET=<generate: openssl rand -hex 32>
+JWT_REFRESH_SECRET=<generate: openssl rand -hex 32>
 
-# Auth
-JWT_SECRET=<random 64-char hex>
-JWT_REFRESH_SECRET=<random 64-char hex>
-
-# Anthropic
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Stripe
-STRIPE_SECRET_KEY=sk_live_...
-STRIPE_WEBHOOK_SECRET=whsec_...
-STRIPE_SOLO_PRICE_ID=price_...
-STRIPE_PRO_PRICE_ID=price_...
-STRIPE_TEAM_PRICE_ID=price_...
+PADDLE_API_KEY=<your Paddle API key>
+PADDLE_WEBHOOK_SECRET=<your Paddle webhook secret>
+PADDLE_SOLO_PRICE_ID=pri_...
+PADDLE_PRO_PRICE_ID=pri_...
+PADDLE_TEAM_PRICE_ID=pri_...
 ```
 
-### Frontend (Vite build env)
+### `.env` (frontend root, create this file)
 
 ```env
-VITE_API_URL=https://your-backend-domain.com
+VITE_PADDLE_CLIENT_TOKEN=<your Paddle client-side token>
+VITE_PADDLE_ENV=sandbox
 ```
 
-`src/api/client.ts` reads `import.meta.env.VITE_API_URL` with fallback to empty string (same-origin proxy in dev).
+When going to production change `VITE_PADDLE_ENV=production`.
 
 ---
 
-## 3. Database Schema
-
-Run migrations with Prisma:
+## Step 6 — Run database migrations
 
 ```bash
 cd server
 npx prisma migrate deploy
 ```
 
-Key models:
+This runs all migrations in `server/prisma/migrations/` in order. The schema creates all tables: users, boards, subscriptions, usage tracking, etc.
 
-| Model | Purpose |
-|---|---|
-| `User` | Auth — email, username, bcrypt password hash |
-| `Subscription` | Stripe subscription per user (plan, status, stripeCustomerId, stripeSubscriptionId, currentPeriodEnd) |
-| `UsageTracking` | Per-user counters — thinkingPartnerUsesThisMonth, challengeThinkingUsesToday + reset timestamps |
-| `Board` | Canvas board metadata (name, userId, updatedAt) |
-| `BoardSnapshot` | Serialised element array per save (last 10 kept per board) |
-| `MemoryNode` | AI session summaries per board (keyTopics, summary, boardId) |
-| `TeamMembership` | Team plan member→owner relationship |
+To also generate the Prisma client (needed after any schema change):
 
-Plans: `FREE`, `SOLO`, `PRO`, `TEAM` (Prisma enum).
+```bash
+npx prisma generate
+```
 
 ---
 
-## 4. Deployment Steps
+## Step 7 — Run locally
 
-### Railway (recommended)
+Open 3 terminals:
 
-1. Create two Railway services from the repo: `frontend` and `server`.
-2. Set build command for `server`: `cd server && npm install && npx prisma generate && npm run build`
-3. Set start command for `server`: `node dist/index.js`
-4. Set build command for `frontend`: `npm install && npm run build`
-5. Set start command for `frontend`: serve the `dist/` folder (e.g. `npx serve dist -s`).
-6. Add a PostgreSQL plugin and a Redis plugin in Railway; copy the generated URLs into env vars.
-7. Set all env vars above in Railway's variable panel for each service.
-8. Run `npx prisma migrate deploy` once via Railway's one-off command or locally with `DATABASE_URL` pointed at prod.
+**Terminal 1 — backend:**
+```bash
+cd server
+npm run dev
+# Server runs on http://localhost:3001
+```
 
-### Stripe setup
+**Terminal 2 — frontend:**
+```bash
+npm run dev
+# App runs on http://localhost:5173
+```
 
-1. Create three recurring prices in Stripe dashboard: Solo ($9/mo), Pro ($19/mo), Team ($49/mo).
-2. Copy each price ID into `STRIPE_SOLO_PRICE_ID`, `STRIPE_PRO_PRICE_ID`, `STRIPE_TEAM_PRICE_ID`.
-3. Add a webhook endpoint pointing to `https://your-backend/api/billing/webhook`.
-4. Enable events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.payment_failed`.
-5. Copy the webhook signing secret into `STRIPE_WEBHOOK_SECRET`.
+**Terminal 3 — ngrok (only needed to test Paddle webhooks locally):**
+```bash
+ngrok http 3001
+# Copy the HTTPS URL and set it as your Paddle webhook destination
+```
 
----
-
-## 5. Feature Flag Reference
-
-Feature access is controlled entirely in `server/src/lib/plans.ts`. No runtime flags — plan tier determines access.
-
-| Feature key | FREE | SOLO | PRO | TEAM |
-|---|---|---|---|---|
-| AI draw (core) | ✓ | ✓ | ✓ | ✓ |
-| Thinking Partner | 5/month | unlimited | unlimited | unlimited |
-| Challenge Thinking | — | 10/day | unlimited | unlimited |
-| Canvas Memory | — | ✓ | ✓ | ✓ |
-| Session Summary | — | ✓ | ✓ | ✓ |
-| Explain Mode | — | — | ✓ | ✓ |
-| Guest View Links | — | — | ✓ | ✓ |
-| Team Memory | — | — | — | ✓ |
-| Admin Dashboard | — | — | — | ✓ |
-| Saved boards | 3 | unlimited | unlimited | unlimited |
-| Collaborators/room | 3 | 5 | 15 | 50 |
-
-To change limits: edit `LIMITS` in `server/src/lib/plans.ts` and redeploy server. No migration required.
+Open [http://localhost:5173](http://localhost:5173) — you should see the Spectre login screen.
 
 ---
 
-## 6. API Cost Reference
+## Step 8 — Deploy to Railway
 
-All AI calls proxy through the Spectre backend — no API keys on the client.
+### 8a. Create Railway project
 
-| Endpoint | Model | Notes |
-|---|---|---|
-| `POST /api/ai/draw` | claude-haiku-4-5 | Vision call with canvas screenshot + prompt |
-| `POST /api/ai/thinking-partner` | claude-haiku-4-5 | SSE stream, layout nodes from speech/text |
-| `POST /api/ai/challenge` | claude-sonnet-4-6 | SSE stream, Challenge Thinking mode |
-| `POST /api/memory/generate` | claude-haiku-4-5 | Session summary, fire-and-forget on board exit |
+1. Go to [railway.app](https://railway.app) → **New Project**
+2. Choose **Deploy from GitHub repo** → select `Spectre`
+3. Railway will auto-detect it as a Node.js app
 
-Haiku: ~$0.25/MTok input, $1.25/MTok output. Sonnet: ~$3/MTok input, $15/MTok output.
+### 8b. Add PostgreSQL and Redis
 
-Rate limits enforced server-side via `UsageTracking` before the Anthropic call is made.
+In your Railway project:
+1. Click **+ New** → **Database** → **Add PostgreSQL**
+2. Click **+ New** → **Database** → **Add Redis**
+
+Railway will automatically create `DATABASE_URL` and `REDIS_URL` variables — copy them for the next step.
+
+### 8c. Create two Railway services
+
+Railway may auto-create one service. You need two:
+
+**Service 1 — server:**
+
+Set these in the service settings:
+- **Root directory:** `server`
+- **Build command:** `npm install && npx prisma generate && npm run build`
+- **Start command:** `node dist/index.js`
+
+Add environment variables (click **Variables** tab):
+```
+NODE_ENV=production
+PORT=3001
+CLIENT_URL=https://<your-frontend-railway-domain>
+DATABASE_URL=<from Railway PostgreSQL>
+REDIS_URL=<from Railway Redis>
+JWT_SECRET=<openssl rand -hex 32>
+JWT_REFRESH_SECRET=<openssl rand -hex 32>
+ANTHROPIC_API_KEY=sk-ant-...
+PADDLE_API_KEY=<your Paddle PRODUCTION API key>
+PADDLE_WEBHOOK_SECRET=<your Paddle webhook secret>
+PADDLE_SOLO_PRICE_ID=pri_...
+PADDLE_PRO_PRICE_ID=pri_...
+PADDLE_TEAM_PRICE_ID=pri_...
+```
+
+**Service 2 — frontend:**
+
+- **Root directory:** `/` (project root)
+- **Build command:** `npm install && npm run build`
+- **Start command:** `npx serve dist -s -l 8080`
+
+Add environment variables:
+```
+VITE_PADDLE_CLIENT_TOKEN=<your Paddle PRODUCTION client token>
+VITE_PADDLE_ENV=production
+```
+
+> **Important:** The frontend build bakes env vars at build time. If you change `VITE_*` vars you must redeploy.
+
+### 8d. Run migrations on production
+
+After the server service first deploys:
+
+1. In Railway → server service → **Settings** → **Deploy** section
+2. Run a one-off command: `npx prisma migrate deploy`
+
+Or do it locally with the production DATABASE_URL:
+```bash
+DATABASE_URL="<production db url>" npx prisma migrate deploy
+```
+
+### 8e. Update Paddle webhook URL
+
+Go back to your Paddle dashboard → Developer Tools → Notifications → edit your webhook destination and replace the ngrok URL with:
+
+```
+https://<your-server-railway-domain>/api/billing/webhook
+```
 
 ---
 
-## 7. Architecture Decisions
+## Step 9 — Switch Paddle from sandbox to production
 
-| Decision | Rationale |
-|---|---|
-| Monorepo (root + server/) | Single repo, easier Railway linking |
-| Prisma ORM | Type-safe queries, migration history, easy schema changes |
-| JWT access (15m) + refresh cookie (7d) | Short-lived access token in memory prevents XSS token theft; HttpOnly refresh cookie is CSRF-safe on path `/api/auth` |
-| Redis for room state | Rooms are ephemeral — no need for DB rows, 48hr TTL auto-cleans |
-| Canvas API (not SVG/WebGL) | Simpler hit-testing, Rough.js renders natively, sufficient for whiteboard scale |
-| Stripe redirect checkout | No Stripe.js bundle on frontend; redirect keeps PCI scope minimal |
-| Single `requireFeature` middleware factory | All feature gating in one place; returns `{ title, body, requiredPlan }` so frontend upgrade modals are always context-specific |
-| Plans lib isolated from routes | Prevents circular imports between `billing.ts` (router) and `featureAccess.ts` (middleware) |
-| Haiku for most AI, Sonnet for Challenge only | Challenge Thinking requires deeper reasoning; Haiku is sufficient for drawing + layout |
+When you're ready to accept real payments:
+
+1. Log in to [paddle.com](https://paddle.com) (production, not sandbox)
+2. Repeat Step 4 — create products, prices, webhook, get API key and client token
+3. Update your Railway server env vars:
+   - `PADDLE_API_KEY` → production key
+   - `PADDLE_WEBHOOK_SECRET` → production webhook secret
+   - `PADDLE_SOLO_PRICE_ID`, `PADDLE_PRO_PRICE_ID`, `PADDLE_TEAM_PRICE_ID` → production price IDs
+4. Update Railway frontend env vars:
+   - `VITE_PADDLE_CLIENT_TOKEN` → production client token
+   - `VITE_PADDLE_ENV` → `production`
+5. Redeploy both services
 
 ---
 
-## 8. Known Limitations
+## Step 10 — Verify everything works
 
-- **Thumbnails in-memory only**: Board thumbnails are captured at 28% JPEG quality and stored in Zustand state. They reset on page reload. For persistent thumbnails, add a `thumbnail` column to `Board` and POST to server on capture.
-- **Redis required for rooms**: Without Redis the server starts but room persistence is disabled (join/leave still works in-session, lost on disconnect).
-- **No public share links yet**: `guest_view_links` feature is gated but not yet implemented end-to-end (no `shareToken` column on boards).
-- **Team membership manual**: There is no invite flow UI. `TeamMembership` rows must be created directly in the DB.
-- **PWA offline**: Service worker caches the shell but all board data requires the server. Offline editing is not supported.
-- **Single-region deployment**: No CDN for canvas assets. For global latency, front the Railway frontend service with Cloudflare.
+Go through this checklist:
+
+- [ ] Can register a new account
+- [ ] Can create and save a board
+- [ ] Can use AI draw (select region → drag → type prompt → generate)
+- [ ] Can use Thinking Partner (toolbar → microphone icon)
+- [ ] Pricing page loads and shows 4 plans
+- [ ] Clicking "Upgrade to Solo" opens Paddle checkout overlay (sandbox)
+- [ ] After test purchase, plan updates in Account page
+- [ ] Manage Billing button opens Paddle customer portal
+- [ ] Multiplayer works: open two tabs, create a room, join from other tab
+- [ ] Canvas auto-saves every 30 seconds
+
+---
+
+## Environment variable reference
+
+| Variable | Where | Required | Description |
+|---|---|---|---|
+| `DATABASE_URL` | server | Yes | PostgreSQL connection string |
+| `REDIS_URL` | server | Yes* | Redis connection (*rooms disabled without it) |
+| `JWT_SECRET` | server | Yes | 32+ char random secret for access tokens |
+| `JWT_REFRESH_SECRET` | server | Yes | 32+ char random secret for refresh tokens |
+| `ANTHROPIC_API_KEY` | server | Yes | Anthropic API key for AI features |
+| `PADDLE_API_KEY` | server | Yes | Paddle server-side API key |
+| `PADDLE_WEBHOOK_SECRET` | server | Yes | Paddle webhook signing secret |
+| `PADDLE_SOLO_PRICE_ID` | server | Yes | Paddle price ID for Solo plan |
+| `PADDLE_PRO_PRICE_ID` | server | Yes | Paddle price ID for Pro plan |
+| `PADDLE_TEAM_PRICE_ID` | server | Yes | Paddle price ID for Team plan |
+| `CLIENT_URL` | server | Yes | Frontend URL (for CORS + redirects) |
+| `NODE_ENV` | server | Yes | `development` or `production` |
+| `PORT` | server | No | Default: 3001 |
+| `VITE_PADDLE_CLIENT_TOKEN` | frontend | Yes | Paddle client-side token (safe to expose) |
+| `VITE_PADDLE_ENV` | frontend | No | `sandbox` (default) or `production` |
+
+---
+
+## Troubleshooting
+
+**"PADDLE_API_KEY not configured" in server logs**
+→ Add `PADDLE_API_KEY` to your server env vars and restart.
+
+**Checkout overlay doesn't open**
+→ Check browser console for Paddle errors. Likely `VITE_PADDLE_CLIENT_TOKEN` is missing or wrong environment. Make sure `VITE_PADDLE_ENV=sandbox` when using sandbox price IDs.
+
+**Webhook not received / plan not updating after purchase**
+→ Check Paddle dashboard → Notifications → your destination → **Logs** tab. Verify the URL is correct and returns 200. If testing locally, confirm ngrok is running and the URL is current (ngrok URLs change each restart).
+
+**"No billing account found" on Manage Billing**
+→ The user has no Paddle subscription linked. This happens if the webhook wasn't received for their purchase. Check webhook logs in Paddle dashboard.
+
+**Prisma migration fails on deploy**
+→ Make sure `DATABASE_URL` is set before running `prisma migrate deploy`. Run `prisma generate` after any schema change.
+
+**Rooms not working / users can't see each other**
+→ Redis is not connected. Check `REDIS_URL` is set. Server logs will say `[redis] not reachable` if it can't connect.
+
+**CORS errors in browser**
+→ `CLIENT_URL` on the server doesn't match the actual frontend URL (including protocol and port). Must be exact match, no trailing slash.
